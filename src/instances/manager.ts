@@ -23,8 +23,23 @@ export default class InstanceManager extends EventEmitter {
         return this.instances;
     }
 
+    getByName(name: string): Instance | void {
+        return this.instances.find(i => i.name === name);
+    }
+
     async loadInstances(): Promise<void> {
         const entries = await readDir(this.path);
+        //i was supposed to do this for reading mods lol oops
+        /*await Promise.all(entries.map(entry => new Promise<void>(async resolve => {
+            if (entry.name)
+                if (!this.instances.some(i => i.name == entry.name)) {
+                    const instance = new Instance(this, entry.name, entry.path);
+                    await instance.init();
+
+                    this.instances.push(instance);
+                }
+            resolve();
+        })));*/
         for (const entry of entries)
             if (entry.name)
                 if (!this.instances.some(i => i.name == entry.name)) {
