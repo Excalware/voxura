@@ -1,4 +1,5 @@
-import { Buffer } from 'buffer/';
+import pmap from 'p-map-browser';
+import { Buffer } from 'buffer';
 import { invoke } from '@tauri-apps/api';
 import { listen } from '@tauri-apps/api/event';
 import { gte, coerce } from 'semver';
@@ -6,7 +7,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { readDir, readBinaryFile } from '@tauri-apps/api/fs';
 
 import { MINECRAFT_RESOURCES_URL } from '../util/constants';
-import { fileExists, readJsonFile, mapLibraries } from '../util';
+import { fileExists, readJsonFile, getModByFile, mapLibraries } from '../util';
+import type Mod from '../util/mod';
 import type Account from '../auth/account';
 import type { Voxura } from '../voxura';
 import type InstanceManager from './manager';
@@ -18,10 +20,6 @@ enum InstanceGameType {
 enum InstanceLoaderType {
     Vanilla,
     Modified
-};
-interface Modification {
-    name: string,
-    path: string
 };
 interface InstanceConfig {
     loader: {
@@ -74,12 +72,13 @@ export default class Instance {
     public id: string;
     public name: string;
     public icon: Uint8Array | void;
-    public modifications: Modification[];
+    public modifications: Mod[];
     private path: string;
     private voxura: Voxura
     private config: InstanceConfig;
     private manager: InstanceManager;
     private gameType: InstanceGameType;
+    private readingMods: boolean;
     
     constructor(manager: InstanceManager, name: string, path: string) {
         this.manager = manager;
@@ -258,14 +257,23 @@ export default class Instance {
         return array.map(a => `"${a}"`);
     }
 
-    public async readMods(): Promise<Modification[]> {
+    public async readMods(): Promise<Mod[]> {
+        if (this.readingMods)
+            throw new Error('mods are already beig read');
+
+        this.readingMods = true;
         if (await fileExists(this.modsPath)) {
             this.modifications = [];
-            for (const { name, path, children } of await readDir(this.modsPath))
+
+            const entries = await readDir(this.modsPath);
+            await pmap(entries, async({ name, path, children }) => {
                 if (name && !children)
-                    this.modifications.push({ name, path });
+                    this.modifications.push(await getModByFile(name, path));
+                console.log(`loaded mod: ${name}`);
+            }, { concurrency: 50 });
         }
         this.manager.emitEvent('listChanged');
+        this.readingMods = false;
 
         return this.modifications;
     }

@@ -1,4 +1,10 @@
-import { exists, FsOptions, writeFile, readTextFile } from '@tauri-apps/api/fs';
+import JSZip from 'jszip';
+import { Buffer } from 'buffer';
+import { exists, FsOptions, writeFile, readTextFile, readBinaryFile } from '@tauri-apps/api/fs';
+
+import Mod from './mod';
+import FabricMod from './mod/fabric';
+import UnknownMod from './mod/unknown';
 import { PLATFORM, MINECRAFT_LIBRARIES_URL } from './constants';
 export function readJsonFile<T>(filePath: string, options?: FsOptions): Promise<T> {
     return readTextFile(filePath, options).then(JSON.parse);
@@ -87,4 +93,22 @@ export function mapLibraries(libraries: any[], path: string): string[] {
 
         return acc.concat(array.filter(_ => _));
     }, []);
+};
+
+export async function getModByFile(name: string, filePath: string): Promise<Mod> {
+    const data = await readBinaryFile(filePath);
+    const buffer = Buffer.from(data);
+
+    const zip = new JSZip();
+    await zip.loadAsync(buffer);
+
+    const fabric = zip.file('fabric.mod.json');
+    if (fabric) {
+        const mod = new FabricMod(name, filePath, await fabric.async('string'));
+        mod.loadIcon(zip);
+        
+        return mod;
+    }
+
+    return new UnknownMod(name, filePath);
 };
