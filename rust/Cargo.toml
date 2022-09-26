@@ -1,0 +1,18 @@
+[package]
+name = "voxura"
+version = "1.0.0"
+description = "A Tauri App"
+authors = ["Blookers"]
+license = ""
+repository = ""
+default-run = "voxura"
+edition = "2021"
+rust-version = "1.61"
+
+[dependencies]
+rand = "0.8.5"
+tauri = "1.0.5"
+
+[features]
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]

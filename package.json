@@ -1,0 +1,12 @@
+{
+    "name": "voxura",
+    "version": "1.0.0",
+    "main": "index.ts",
+    "repository": "https://github.com/Excalware/voxura",
+    "author": "Blookerss (https://github.com/Blookerss)",
+    "license": "MIT",
+    "dependencies": {
+        "@reduxjs/toolkit": "^1.8.5",
+        "semver": "^7.3.7"
+    }
+}
