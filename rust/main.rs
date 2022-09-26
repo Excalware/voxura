@@ -18,7 +18,7 @@ struct LogPayload {
 }
 
 #[tauri::command]
-pub fn launch(app_handle: tauri::AppHandle, cwd: String, java_path: String, args: Vec<String>) -> String {
+pub fn voxura_launch(app_handle: tauri::AppHandle, cwd: String, java_path: String, args: Vec<String>) -> String {
     let logger = gen_log_str();
     let _logger = logger.clone();
     std::thread::spawn(move || {
