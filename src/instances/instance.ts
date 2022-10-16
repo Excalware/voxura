@@ -21,6 +21,13 @@ enum InstanceLoaderType {
     Vanilla,
     Modified
 };
+export interface RustMod {
+    name: string,
+    path: string,
+    icon?: number[],
+    meta: string,
+    meta_name: string
+};
 interface InstanceConfig {
     loader: {
         game: string,
@@ -262,15 +269,17 @@ export default class Instance {
             throw new Error('mods are already beig read');
 
         this.readingMods = true;
+        this.modifications = [];
         if (await fileExists(this.modsPath)) {
-            this.modifications = [];
-
-            const entries = await readDir(this.modsPath);
+            /*const entries = await readDir(this.modsPath);
             await pmap(entries, async({ name, path, children }) => {
                 if (name && !children)
                     this.modifications.push(await getModByFile(name, path));
                 console.log(`loaded mod: ${name}`);
-            }, { concurrency: 50 });
+            }, { concurrency: 50 });*/
+            this.modifications = await invoke<RustMod[]>('voxura_read_mods', {
+                path: this.modsPath
+            }).then(m => m.map(getModByFile));
         }
         this.manager.emitEvent('listChanged');
         this.readingMods = false;

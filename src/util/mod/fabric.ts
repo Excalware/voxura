@@ -38,15 +38,6 @@ export default class FabricMod extends Mod {
         } catch(err) { console.warn(err); }
     }
 
-    async loadIcon(zip: JSZip) {
-        const path = this.metadata?.icon;
-        if (path) {
-            const data = await zip.file(path)?.async('arraybuffer');
-            if (data)
-                this.icon = Buffer.from(data);
-        }
-    }
-
     public get id() {
         return this.metadata?.id;
     }

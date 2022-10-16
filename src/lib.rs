@@ -58,6 +58,72 @@ pub fn voxura_launch(app_handle: tauri::AppHandle, cwd: String, java_path: Strin
     return logger;
 }
 
+use std::fs;
+use std::io::Read;
+use std::path::Path;
+
+#[derive(Clone, serde::Serialize)]
+pub struct Mod {
+    name: String,
+    path: String,
+    icon: Option<Vec<u8>>,
+    meta: Option<String>,
+    meta_name: Option<String>
+}
+
+fn read_mod(path: &Path) -> Result<Mod, String> {
+    let file = std::fs::File::open(path);
+    if file.is_ok() {
+        let archiv = zip::ZipArchive::new(file.as_ref().unwrap());
+        if archiv.is_ok() {
+            let mut archive = archiv.unwrap();
+            let mut data = Mod {
+                name: path.file_name().unwrap().to_str().unwrap().to_string(),
+                path: path.to_str().unwrap().to_string(),
+                icon: None,
+                meta: None,
+                meta_name: None
+            };
+
+            for i in 0..archive.len() {
+                let mut file2 = archive.by_index(i).unwrap();
+                let name = file2.name().to_string();
+                if name == "fabric.mod.json" {
+                    let mut buf = String::new();
+                    file2.read_to_string(&mut buf).unwrap();
+
+                    data.meta = Some(buf);
+                    data.meta_name = Some(name);
+                } else if name.contains("icon.png") {
+                    let mut buf = Vec::new();
+                    file2.read_to_end(&mut buf).unwrap();
+
+                    data.icon = Some(buf);
+                }
+            }
+
+            return Ok(data);
+        }
+        return Err(archiv.unwrap_err().to_string());
+    }
+    return Err(file.unwrap_err().to_string());
+}
+
+use jwalk::WalkDir;
+
+#[tauri::command]
+pub fn voxura_read_mods(path: String) -> Vec<Mod> {
+    let mut mods = Vec::new();
+    for path in fs::read_dir(path).unwrap() {
+        let meta = read_mod(path.unwrap().path().as_path());
+        if meta.is_ok() {
+            mods.push(meta.unwrap());
+        }
+    }
+
+    return mods;
+}
+
 #[cfg(windows)]
 mod child_runner {
     use std::str;

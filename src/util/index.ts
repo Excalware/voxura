@@ -5,6 +5,7 @@ import { exists, FsOptions, writeFile, readTextFile, readBinaryFile } from '@tau
 import Mod from './mod';
 import FabricMod from './mod/fabric';
 import UnknownMod from './mod/unknown';
+import type { RustMod } from '../instances/instance';
 import { PLATFORM, MINECRAFT_LIBRARIES_URL } from './constants';
 export function readJsonFile<T>(filePath: string, options?: FsOptions): Promise<T> {
     return readTextFile(filePath, options).then(JSON.parse);
@@ -95,20 +96,14 @@ export function mapLibraries(libraries: any[], path: string): string[] {
     }, []);
 };
 
-export async function getModByFile(name: string, filePath: string): Promise<Mod> {
-    const data = await readBinaryFile(filePath);
-    const buffer = Buffer.from(data);
-
-    const zip = new JSZip();
-    await zip.loadAsync(buffer);
-
-    const fabric = zip.file('fabric.mod.json');
-    if (fabric) {
-        const mod = new FabricMod(name, filePath, await fabric.async('string'));
-        mod.loadIcon(zip);
+export function getModByFile({ name, icon, path, meta, meta_name }: RustMod): Mod {
+    if (meta_name === 'fabric.mod.json') {
+        const mod = new FabricMod(name, path, meta);
+        if (icon)
+            mod.icon = Buffer.from(icon);
         
         return mod;
     }
 
-    return new UnknownMod(name, filePath);
+    return new UnknownMod(name, path);
 };
