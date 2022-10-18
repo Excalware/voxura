@@ -1,6 +1,4 @@
-import JSZip from 'jszip';
 import { Buffer } from 'buffer';
-import { readBinaryFile } from '@tauri-apps/api/fs';
 
 import Mod from './';
 export interface FabricMetadata {
@@ -30,6 +28,7 @@ export interface FabricMetadata {
 };
 export default class FabricMod extends Mod {
     public icon?: Buffer;
+    public loader: string = 'fabric';
     private metadata?: FabricMetadata;
     constructor(name: string, filePath: string, metadata: string) {
         super(name, filePath);

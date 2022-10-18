@@ -88,13 +88,13 @@ fn read_mod(path: &Path) -> Result<Mod, String> {
             for i in 0..archive.len() {
                 let mut file2 = archive.by_index(i).unwrap();
                 let name = file2.name().to_string();
-                if name == "fabric.mod.json" {
+                if name == "fabric.mod.json" || name.contains("mods.toml") {
                     let mut buf = String::new();
                     file2.read_to_string(&mut buf).unwrap();
 
                     data.meta = Some(buf);
                     data.meta_name = Some(name);
-                } else if name.contains("icon.png") {
+                } else if name.contains("icon.png") || name.contains("logo.png") {
                     let mut buf = Vec::new();
                     file2.read_to_end(&mut buf).unwrap();
 
@@ -108,8 +108,6 @@ fn read_mod(path: &Path) -> Result<Mod, String> {
     }
     return Err(file.unwrap_err().to_string());
 }
-
-use jwalk::WalkDir;
 
 #[tauri::command]
 pub fn voxura_read_mods(path: String) -> Vec<Mod> {

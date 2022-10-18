@@ -3,6 +3,7 @@ import { Buffer } from 'buffer';
 import { exists, FsOptions, writeFile, readTextFile, readBinaryFile } from '@tauri-apps/api/fs';
 
 import Mod from './mod';
+import ForgeMod from './mod/forge';
 import FabricMod from './mod/fabric';
 import UnknownMod from './mod/unknown';
 import type { RustMod } from '../instances/instance';
@@ -99,6 +100,12 @@ export function mapLibraries(libraries: any[], path: string): string[] {
 export function getModByFile({ name, icon, path, meta, meta_name }: RustMod): Mod {
     if (meta_name === 'fabric.mod.json') {
         const mod = new FabricMod(name, path, meta);
+        if (icon)
+            mod.icon = Buffer.from(icon);
+        
+        return mod;
+    } if (meta_name.includes('mods.toml')) {
+        const mod = new ForgeMod(name, path, meta);
         if (icon)
             mod.icon = Buffer.from(icon);
         
