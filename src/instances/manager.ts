@@ -1,5 +1,5 @@
 import { Voxura } from '../voxura';
-import { readDir } from '@tauri-apps/api/fs';
+import { exists, readDir, createDir } from '@tauri-apps/api/fs';
 
 import Instance from './instance';
 import EventEmitter from '../util/eventemitter';
@@ -55,6 +55,20 @@ export default class InstanceManager extends EventEmitter {
         this.instances = [];
         this.voxura.store.dispatch(clearInstances());
         return this.loadInstances();
+    }
+
+    async createInstance(name: string): Promise<Instance> {
+        const path = `${this.path}/${name}`;
+        if (!(await exists(path) as any))
+            await createDir(path);
+
+        const instance = new Instance(this, name, path);
+        await instance.init();
+
+        this.instances.push(instance);
+        this.emitEvent('listChanged');
+        
+        return instance;
     }
 
     get assetsPath() {

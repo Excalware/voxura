@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { readDir, readBinaryFile } from '@tauri-apps/api/fs';
 
 import { MINECRAFT_RESOURCES_URL } from '../util/constants';
-import { fileExists, readJsonFile, getModByFile, mapLibraries } from '../util';
+import { fileExists, readJsonFile, getModByFile, mapLibraries, writeJsonFile } from '../util';
 import type Mod from '../util/mod';
 import type Account from '../auth/account';
 import type { Voxura } from '../voxura';
@@ -29,11 +29,14 @@ export interface RustMod {
     meta_name: string
 };
 interface InstanceConfig {
+    ram: number,
     loader: {
         game: string,
         type: string,
         version?: string
-    }
+    },
+    resolution: number[],
+    modifications: string[][]
 };
 interface JavaVersionManifestDownload {
     url: string,
@@ -70,10 +73,13 @@ interface JavaAssetIndex {
 
 const ARG_REGEX = /\${*(.*)}/;
 const DEFAULT_CONFIG: InstanceConfig = {
+    ram: 2,
     loader: {
         game: '1.0.0',
-        type: 'vanilla'
-    }
+        type: 'java'
+    },
+    resolution: [900, 500],
+    modifications: []
 };
 export default class Instance {
     public id: string;
@@ -108,7 +114,7 @@ export default class Instance {
 
     async refresh(): Promise<void> {
         this.icon = await readBinaryFile(this.path + '/icon.png').catch(console.log);
-        this.config = await readJsonFile<InstanceConfig>(this.path + '/config.json').catch(console.log) ?? DEFAULT_CONFIG;
+        this.config = await readJsonFile<InstanceConfig>(this.configPath).catch(console.log) ?? DEFAULT_CONFIG;
         this.manager.emitEvent('listChanged');
     }
 
@@ -287,8 +293,33 @@ export default class Instance {
         return this.modifications;
     }
 
+    changeLoader(type?: string, version?: string): Promise<void> {
+        if (type)
+            this.config.loader.type = type;
+        if (version)
+            this.config.loader.version = version;
+
+        this.manager.emitEvent('listChanged');
+        return this.saveConfig();
+    }
+
+    changeVersion(version: string): Promise<void> {
+        this.config.loader.game = version;
+
+        this.manager.emitEvent('listChanged');
+        return this.saveConfig();
+    }
+
+    saveConfig(): Promise<void> {
+        return writeJsonFile(this.configPath, this.config);
+    }
+
     get modsPath() {
-        return `${this.path}/mods`;
+        return this.path + '/mods';
+    }
+
+    get configPath() {
+        return this.path + '/config.json';
     }
 
     get manifestPath() {
