@@ -1,6 +1,5 @@
-import JSZip from 'jszip';
 import { Buffer } from 'buffer';
-import { exists, FsOptions, writeFile, readTextFile, readBinaryFile } from '@tauri-apps/api/fs';
+import { exists, FsOptions, writeFile, readTextFile } from '@tauri-apps/api/fs';
 
 import Mod from './mod';
 import ForgeMod from './mod/forge';

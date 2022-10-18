@@ -13,7 +13,6 @@ export interface VoxuraConfig {
 export class Voxura {
     public auth: Authentication;
     public java: JavaManager;
-    public store;
     public config: VoxuraConfig;
     public rootPath: string;
     public instances: InstanceManager;
@@ -25,10 +24,6 @@ export class Voxura {
         this.config = config ?? {
             instanceConfigType: InstanceConfigType.Default
         };
-    }
-
-    useStore(store) {
-        this.store = store;
     }
 
     async startInstances(): Promise<void> {

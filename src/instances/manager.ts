@@ -3,7 +3,6 @@ import { exists, readDir, createDir } from '@tauri-apps/api/fs';
 
 import Instance from './instance';
 import EventEmitter from '../util/eventemitter';
-import { clearInstances } from '../slices/instances';
 export default class InstanceManager extends EventEmitter {
     public voxura: Voxura;
     private path: string;
@@ -53,7 +52,8 @@ export default class InstanceManager extends EventEmitter {
 
     refreshInstances(): Promise<void> {
         this.instances = [];
-        this.voxura.store.dispatch(clearInstances());
+        this.emitEvent('listChanged');
+
         return this.loadInstances();
     }
 

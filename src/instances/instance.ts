@@ -1,10 +1,9 @@
-import pmap from 'p-map-browser';
 import { Buffer } from 'buffer';
 import { invoke } from '@tauri-apps/api';
 import { listen } from '@tauri-apps/api/event';
 import { gte, coerce } from 'semver';
 import { v4 as uuidv4 } from 'uuid';
-import { readDir, readBinaryFile } from '@tauri-apps/api/fs';
+import { readBinaryFile } from '@tauri-apps/api/fs';
 
 import { MINECRAFT_RESOURCES_URL } from '../util/constants';
 import { fileExists, readJsonFile, getModByFile, mapLibraries, writeJsonFile } from '../util';
@@ -108,7 +107,6 @@ export default class Instance {
     async init(): Promise<void> {
         await this.refresh();
 
-        //this.voxura.store.dispatch(addInstance(this.serialize()));
         console.log('Loaded', this.name);
     }
 
@@ -276,17 +274,11 @@ export default class Instance {
 
         this.readingMods = true;
         this.modifications = [];
-        if (await fileExists(this.modsPath)) {
-            /*const entries = await readDir(this.modsPath);
-            await pmap(entries, async({ name, path, children }) => {
-                if (name && !children)
-                    this.modifications.push(await getModByFile(name, path));
-                console.log(`loaded mod: ${name}`);
-            }, { concurrency: 50 });*/
+        if (await fileExists(this.modsPath))
             this.modifications = await invoke<RustMod[]>('voxura_read_mods', {
                 path: this.modsPath
             }).then(m => m.map(getModByFile));
-        }
+
         this.manager.emitEvent('listChanged');
         this.readingMods = false;
 
@@ -338,14 +330,5 @@ export default class Instance {
 
     get base64Icon(): string | null {
         return this.icon ? Buffer.from(this.icon).toString('base64') : null;
-    }
-
-    serialize() {
-        const { id, name, path, icon, config, isModded, loaderType } = this;
-        return {
-            id, name, path, icon: icon && Buffer.from(icon).toString('base64'), config,
-            isModded,
-            loaderType
-        };
     }
 };
