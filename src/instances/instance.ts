@@ -525,4 +525,8 @@ export default class Instance extends EventEmitter {
     public get base64Icon(): string | null {
         return this.icon ? Buffer.from(this.icon).toString('base64') : null;
     }
+
+    public get webIcon(): string {
+        return this.icon ? `data:image/png;base64,${this.base64Icon}` : 'img/icons/unknown_mod.svg';
+    }
 };
