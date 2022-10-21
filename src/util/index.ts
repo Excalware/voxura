@@ -1,4 +1,5 @@
 import { Buffer } from 'buffer';
+import { invoke } from '@tauri-apps/api';
 import { exists, FsOptions, writeFile, readTextFile } from '@tauri-apps/api/fs';
 
 import Mod from './mod';
@@ -18,6 +19,10 @@ export function writeJsonFile(filePath: string, contents: any, options?: FsOptio
 export function fileExists(filePath: string, options?: FsOptions): Promise<boolean> {
     return exists(filePath, options) as any;
 };
+
+export function filesExist(filePathes: string[]): Promise<Record<string, boolean>> {
+    return invoke('voxura_files_exist', { files: filePathes });
+}
 
 export function mavenAsArray(maven: string, nativeString?: string, forceExt?: string): string[] {
     const pathSplit = maven.split(':');
@@ -50,7 +55,7 @@ export function convertPlatform(format: string): string {
     };
 };
 
-export function mapLibraries(libraries: any[], path: string): string[] {
+export function mapLibraries(libraries: any[], path: string): any[] {
     return libraries
     .reduce((acc, lib) => {
         const array: {}[] = [];

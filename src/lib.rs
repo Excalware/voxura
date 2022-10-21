@@ -122,6 +122,136 @@ pub fn voxura_read_mods(path: String) -> Vec<Mod> {
     return mods;
 }
 
+#[derive(Clone, serde::Serialize)]
+struct DownloadPayload {
+    id: String,
+    total: u64,
+    progress: u64
+}
+
+use std::cmp::min;
+use futures::StreamExt;
+
+async fn download_file(app_handle: tauri::AppHandle, id: String, path: String, url: String) -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client.get(url).send().await?;
+
+    let total_size = response.content_length().unwrap();
+    let mut downloaded: u64 = 0;
+    let mut stream = response.bytes_stream();
+
+    let mut last_emit = 0;
+    let mut buffer = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        buffer.extend(chunk.as_ref().to_vec());
+
+        let progress = min(downloaded + (chunk.len() as u64), total_size);
+        downloaded = progress;
+
+        if progress - last_emit >= 100000 || progress == total_size {
+            app_handle.emit_all("download_update", DownloadPayload {
+                id: id.to_string(),
+                total: total_size,
+                progress
+            }).unwrap();
+            last_emit = progress;
+        }
+    }
+    fs::create_dir_all(Path::new(&path).parent().unwrap()).unwrap();
+    fs::write(path, buffer).unwrap();
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn voxura_download_file(app_handle: tauri::AppHandle, id: String, path: String, url: String) {
+    tauri::async_runtime::spawn(download_file(app_handle, id, path, url));
+}
+
+#[tauri::command]
+pub fn voxura_extract_archive(app_handle: tauri::AppHandle, id: String, target: String, path: String) {
+    tauri::async_runtime::spawn(async move {
+        let file = std::fs::File::open(target).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+        app_handle.emit_all("download_update", DownloadPayload {
+            id: id.to_string(),
+            total: 2,
+            progress: 1
+        }).unwrap();
+
+        archive.extract(path).unwrap();
+
+        app_handle.emit_all("download_update", DownloadPayload {
+            id: id.to_string(),
+            total: 2,
+            progress: 2
+        }).unwrap();
+    });
+}
+
+#[tauri::command]
+pub fn voxura_extract_archive_contains(app_handle: tauri::AppHandle, id: String, target: String, path: String, contains: String) {
+    tauri::async_runtime::spawn(async move {
+        fs::create_dir_all(Path::new(&path)).unwrap();
+
+        let file = std::fs::File::open(target).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+        app_handle.emit_all("download_update", DownloadPayload {
+            id: id.to_string(),
+            total: 2,
+            progress: 1
+        }).unwrap();
+
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i).unwrap();
+            if !file.enclosed_name().unwrap().to_str().unwrap().contains(&*contains) {
+                continue;
+            }
+            let concat = format!(
+                "{}/{}",
+                path,
+                file.enclosed_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .replace(&*path, "")
+            );
+            let outpath = std::path::Path::new(&concat);
+    
+            if (&*file.name()).ends_with('/') {
+                std::fs::create_dir_all(&*outpath).unwrap();
+            } else {
+                if let Some(p) = outpath.parent() {
+                    if !p.exists() {
+                        std::fs::create_dir_all(&p).unwrap();
+                    }
+                }
+                let mut outfile = std::fs::File::create(&outpath).unwrap();
+                std::io::copy(&mut file, &mut outfile).unwrap();
+            }
+        }
+
+        app_handle.emit_all("download_update", DownloadPayload {
+            id: id.to_string(),
+            total: 2,
+            progress: 2
+        }).unwrap();
+    });
+}
+
+use std::collections::HashMap;
+
+#[tauri::command]
+pub fn voxura_files_exist(files: Vec<String>) -> HashMap<String, bool> {
+    let mut results = HashMap::new();
+    for path in &files {
+        results.insert(path.to_string(), Path::new(path).exists());
+    }
+
+    results
+}
+
 #[cfg(windows)]
 mod child_runner {
     use std::str;

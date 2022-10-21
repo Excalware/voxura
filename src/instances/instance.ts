@@ -1,16 +1,20 @@
+import pmap from 'p-map-browser';
+import { fetch } from '@tauri-apps/api/http';
 import { Buffer } from 'buffer';
 import { invoke } from '@tauri-apps/api';
 import { listen } from '@tauri-apps/api/event';
 import { gte, coerce } from 'semver';
 import { v4 as uuidv4 } from 'uuid';
-import { readBinaryFile } from '@tauri-apps/api/fs';
+import { exists, readBinaryFile } from '@tauri-apps/api/fs';
 
-import { MINECRAFT_RESOURCES_URL } from '../util/constants';
-import { fileExists, readJsonFile, getModByFile, mapLibraries, writeJsonFile } from '../util';
 import type Mod from '../util/mod';
 import type Account from '../auth/account';
 import type { Voxura } from '../voxura';
+import type PlatformMod from '../platforms/mod';
 import type InstanceManager from './manager';
+import { Download, DownloadType } from '../downloader';
+import { MINECRAFT_RESOURCES_URL } from '../util/constants';
+import { fileExists, filesExist, readJsonFile, getModByFile, mapLibraries, writeJsonFile } from '../util';
 
 enum InstanceGameType {
     MinecraftJava,
@@ -58,7 +62,11 @@ interface JavaVersionManifest {
         game: string[]
     },
     libraries: any[],
-    minecraftArguments: string[],
+    javaVersion: {
+        component: string,
+        majorVersion: number
+    },
+    minecraftArguments: string,
     mainClass: string
 };
 interface JavaAssetIndex {
@@ -83,16 +91,16 @@ const DEFAULT_CONFIG: InstanceConfig = {
 export default class Instance {
     public id: string;
     public name: string;
-    public icon: Uint8Array | void;
+    public icon?: Uint8Array | void;
+    public config: InstanceConfig;
     public modifications: Mod[];
     private path: string;
     private voxura: Voxura
-    private config: InstanceConfig;
     private manager: InstanceManager;
     private gameType: InstanceGameType;
-    private readingMods: boolean;
+    private readingMods: boolean = false;
     
-    constructor(manager: InstanceManager, name: string, path: string) {
+    public constructor(manager: InstanceManager, name: string, path: string) {
         this.manager = manager;
         this.voxura = manager.voxura;
 
@@ -104,27 +112,157 @@ export default class Instance {
         this.modifications = [];
     }
 
-    async init(): Promise<void> {
+    public async init(): Promise<void> {
         await this.refresh();
 
         console.log('Loaded', this.name);
     }
 
-    async refresh(): Promise<void> {
+    public async refresh(): Promise<void> {
         this.icon = await readBinaryFile(this.path + '/icon.png').catch(console.log);
         this.config = await readJsonFile<InstanceConfig>(this.configPath).catch(console.log) ?? DEFAULT_CONFIG;
         this.manager.emitEvent('listChanged');
     }
 
-    async launch(): Promise<void> {
+    public async installMod(mod: PlatformMod<any>): Promise<void> {
+        console.log(mod);
+        const version = await mod.getLatestVersion(this);
+        console.log('latest version:', version);
+
+        const file = version?.files?.find((f: any) => f.primary && (f.url ?? f.downloadUrl)) ?? version?.files?.find((f: any) => f.url ?? f.downloadUrl) ?? version;
+        const name = file.filename ?? file.fileName;
+        const url = file.url ?? file.downloadUrl;
+        console.log('file:', file);
+
+        this.voxura.downloader.downloadFile(`${this.modsPath}/${name}`, url,
+            `${mod.displayName} (Game Modification)`, mod.webIcon
+        );
+    }
+
+    public async installGame(): Promise<void> {
+        if (this.gameType === InstanceGameType.MinecraftJava) {
+            const manifest = await this.getManifest();
+            const artifact = {
+                url: manifest.downloads.client.url,
+                sha1: manifest.downloads.client.sha1,
+                path: this.clientPath
+            };
+
+            const downloader = this.voxura.downloader;
+            const version = this.config.loader.game;
+            const download = new Download(downloader, artifact.path);
+            download.displayName = `Minecraft: Java Edition ${version}`;
+            download.displayIcon = 'img/icons/minecraft/java.png';
+
+            downloader.downloads.push(download);
+            downloader.emitEvent('changed');
+            downloader.emitEvent('downloadStarted', download);
+
+            if (!(await exists(artifact.path) as any)) {
+                invoke('voxura_download_file', {
+                    id: download.id,
+                    url: artifact.url,
+                    path: artifact.path
+                });
+
+                await new Promise<void>(async resolve => {
+                    download.listenForEvent('finished', () => {
+                        download.unlistenForEvent('finished', resolve);
+                        resolve();
+                    });
+                });
+            }
+
+            const libraries = mapLibraries(manifest.libraries, this.manager.librariesPath);
+            await this.downloadLibraries(libraries, download);
+
+            this.extractNatives(download, libraries);
+
+            if (libraries.some(l => l.natives))
+                await download.waitForFinish();
+        }
+    }
+
+    private extractNatives(download: Download, libraries: any[]): void {
+        for (const { path, natives } of libraries)
+            if (natives) {
+                const sub = new Download(this.voxura.downloader, path);
+                sub.type = DownloadType.Extract;
+                sub.update(0, 2);
+
+                console.log('native path:', path);
+                invoke('voxura_extract_archive_contains', {
+                    id: sub.id,
+                    path: this.nativesPath,
+                    target: path,
+                    contains: '.dll'
+                });
+
+                download.addDownload(sub);
+            }
+    }
+
+    private async downloadLibraries(libraries: any[], download?: Download): Promise<void> {
+        const existing = await filesExist(libraries.filter(l => l.path && l.url).map(l => l.path));
+        if (!download && Object.values(existing).some(e => !e)) {
+            download = new Download(this.voxura.downloader, '');
+            download.total = 0, download.progress = 0;
+            download.displayName = `${this.config.loader.type} ${this.config.loader.game} Libraries`;
+
+            const downloader = this.voxura.downloader;
+            downloader.downloads.push(download);
+            downloader.emitEvent('changed');
+            downloader.emitEvent('downloadStarted', download);
+        }
+
+        await pmap(Object.entries(existing), async([path, exists]: [path: string, exists: boolean]) => {
+            if (!exists) {
+                const library = libraries.find(l => l.path === path);
+                if (library) {
+                    const sub = new Download(this.voxura.downloader, path);
+                    invoke('voxura_download_file', {
+                        id: sub.id,
+                        url: library.url,
+                        path
+                    });
+
+                    (download as any).addDownload(sub);
+                    await sub.waitForFinish();
+                }
+            }
+        }, { concurrency: 25 });
+    }
+
+    private async getManifest(): Promise<JavaVersionManifest> {
+        const manifestPath = this.manifestPath;
+        if (await exists(manifestPath) as any)
+            return readJsonFile<JavaVersionManifest>(manifestPath);
+
+        const { data } = await fetch<any>('https://launchermeta.mojang.com/mc/game/version_manifest.json');
+        
+        const version = this.config.loader.game;
+        const manifest = data.versions.find((manifest: any) => manifest.id === version);
+        if (!manifest)
+            throw new Error(`Could not find manifest for ${version}`);
+
+        await this.voxura.downloader.downloadFile(manifestPath, manifest.url,
+            `Minecraft: Java Edition ${version} Manifest`, 'img/icons/minecraft/java.png'
+        );
+
+        return readJsonFile<JavaVersionManifest>(manifestPath);
+    }
+
+    public async launch(): Promise<void> {
         console.log('[voxura.instances]: Launching', this);
 
         switch (this.gameType) {
             case InstanceGameType.MinecraftJava:
                 const { assetsPath, versionsPath } = this.manager;
-                const manifest = await readJsonFile<JavaVersionManifest>(this.manifestPath);
+                const manifest = await this.getManifest();
                 const assetsIndex = await readJsonFile<JavaAssetIndex>(`${assetsPath}/indexes/${manifest.assets}.json`);
-                
+                if (!(await exists(this.clientPath) as any))
+                    await this.installGame();
+
                 const assets = Object.entries(assetsIndex.objects).map(
                     ([key, { hash }]) => ({
                         url: `${MINECRAFT_RESOURCES_URL}/${hash.substring(0, 2)}/${hash}`,
@@ -136,11 +274,10 @@ export default class Instance {
                     })
                 );
 
-                let artifact = {
+                const artifact = {
                     url: manifest.downloads.client.url,
                     sha1: manifest.downloads.client.sha1,
-                    //path: `${versionsPath}/${manifest.id}.jar`
-                    path: `${this.manager.librariesPath}/minecraft/${manifest.id}.jar`
+                    path: this.clientPath
                 }
 
                 const { loader } = this.config;
@@ -154,14 +291,16 @@ export default class Instance {
                         manifest.minecraftArguments = loaderManifest.minecraftArguments;
                 }
                 libraries.push(...mapLibraries(manifest.libraries, this.manager.librariesPath));
+
+                await this.downloadLibraries(libraries);
                 
                 const javaArgs = await this.genArguments(manifest, artifact, libraries);
                 console.log(javaArgs);
 
-                const eventId: string = await invoke('launch', {
+                const eventId: string = await invoke('voxura_launch', {
                     cwd: this.path,
                     args: javaArgs,
-                    javaPath: await this.voxura.java.getExecutable(17)
+                    javaPath: await this.voxura.java.getExecutable(manifest.javaVersion.majorVersion)
                 });
                 listen(eventId, ({ payload: { type, data }}: { payload: { type: string, data: string } }) => {
                     switch(type) {
@@ -182,11 +321,11 @@ export default class Instance {
         }
     }
 
-    async genArguments(manifest: JavaVersionManifest, artifact: any, libraries: string[]) {
+    private async genArguments(manifest: JavaVersionManifest, artifact: any, libraries: string[]) {
         const args: string[] = [];
         const memory = 4000;
         const account = this.voxura.auth.getCurrent();
-        if (manifest.assets !== 'legacy' && gte(coerce(manifest.assets), coerce('1.13'))) {
+        if (manifest.assets !== 'legacy' && gte(coerce(manifest.assets) as any, coerce('1.13') as any)) {
             args.push(...this.processArguments(account, artifact, manifest, libraries, manifest.arguments.jvm));
 
             args.push(`-Xmx${memory}m`, `-Xms${memory}m`);
@@ -195,15 +334,30 @@ export default class Instance {
                 args.push(manifest.logging.client?.argument ?? '');
 
             args.push(manifest.mainClass);
-
             args.push(...this.processArguments(account, artifact, manifest, libraries, manifest.arguments.game));
         } else {
-            
+            args.push('-cp');
+            args.push([...libraries, artifact]
+                .filter(l => !l.natives)
+                .map(l => `"${l.path.replace(/\/+|\\+/g, '/')}"`)
+                .join(';')
+            );
+
+            args.push(`-Xmx${memory}m`, `-Xms${memory}m`);
+            //args.push(...this.processArguments(account, artifact, manifest, libraries, manifest.arguments.jvm));
+
+            args.push(`-Djava.library.path="${this.path}/natives"`);
+            args.push(`-Dminecraft.applet.TargetDirectory="${this.path}"`);
+            if (manifest.logging)
+                args.push(manifest.logging.client?.argument ?? '');
+
+            args.push(manifest.mainClass);
+            args.push(...this.processArguments(account, artifact, manifest, libraries, manifest.minecraftArguments.split(' ')));
         }
         return args.map(a => a.toString());
     }
 
-    processArguments(account: Account | undefined, artifact: any, manifest: JavaVersionManifest, libraries: string[], args: any[] = []) {
+    private processArguments(account: Account | undefined, artifact: any, manifest: JavaVersionManifest, libraries: string[], args: any[] = []) {
         const processedArgs: any[] = [];
         for (const arg of args) {
             const processed = this.processArgument(arg);
@@ -247,7 +401,7 @@ export default class Instance {
         return processedArgs;
     }
 
-    processArgument(arg: any): string[] {
+    private processArgument(arg: any): string[] {
         if (typeof arg === 'string')
             return [arg];
         if (arg.rules) {
@@ -285,7 +439,7 @@ export default class Instance {
         return this.modifications;
     }
 
-    changeLoader(type?: string, version?: string): Promise<void> {
+    public changeLoader(type?: string, version?: string): Promise<void> {
         if (type)
             this.config.loader.type = type;
         if (version)
@@ -295,40 +449,52 @@ export default class Instance {
         return this.saveConfig();
     }
 
-    changeVersion(version: string): Promise<void> {
+    public changeVersion(version: string): Promise<void> {
         this.config.loader.game = version;
 
         this.manager.emitEvent('listChanged');
         return this.saveConfig();
     }
 
-    saveConfig(): Promise<void> {
+    private saveConfig(): Promise<void> {
         return writeJsonFile(this.configPath, this.config);
     }
 
-    get modsPath() {
+    public get modsPath() {
         return this.path + '/mods';
     }
 
-    get configPath() {
+    public get configPath() {
         return this.path + '/config.json';
     }
 
-    get manifestPath() {
-        return `${this.manager.versionsPath}/java-${this.config.loader.game}/manifest.json`;
+    public get nativesPath() {
+        return this.path + '/natives';
     }
 
-    get loaderType() {
+    public get clientPath() {
+        return this.versionPath + '/client.jar';
+    }
+
+    public get manifestPath() {
+        return this.versionPath + '/manifest.json';
+    }
+
+    public get versionPath() {
+        return `${this.manager.versionsPath}/java-${this.config.loader.game}`;
+    }
+
+    public get loaderType() {
         if (this.config.loader.version)
             return InstanceLoaderType.Modified;
         return InstanceLoaderType.Vanilla;
     }
 
-    get isModded() {
+    public get isModded() {
         return this.loaderType === InstanceLoaderType.Modified;
     }
 
-    get base64Icon(): string | null {
+    public get base64Icon(): string | null {
         return this.icon ? Buffer.from(this.icon).toString('base64') : null;
     }
 };

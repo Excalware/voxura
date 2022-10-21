@@ -1,7 +1,10 @@
+import Downloader from './downloader';
 import JavaManager from './java';
 import Authentication from './auth';
 import InstanceManager from './instances/manager';
 
+import Modrinth from './platforms/modrinth';
+import type Platform from './platforms';
 import type Instance from './instances/instance';
 enum InstanceConfigType {
     Default, // not actually a thing yet!
@@ -15,27 +18,45 @@ export class Voxura {
     public java: JavaManager;
     public config: VoxuraConfig;
     public rootPath: string;
+    public platforms: { [key: string]: Platform };
     public instances: InstanceManager;
+    public downloader: Downloader;
 
-    constructor(path: string, config?: VoxuraConfig) {
+    public constructor(path: string, config?: VoxuraConfig) {
         this.rootPath = path.replace(/\/+|\\+/g, '/').replace(/\/$/g, '');
-        this.java = new JavaManager(path + '/java');
+        this.java = new JavaManager(this, path + '/java');
         this.auth = new Authentication(this);
+        this.downloader = new Downloader(this);
+        this.platforms = {
+            modrinth: new Modrinth()
+        };
         this.config = config ?? {
             instanceConfigType: InstanceConfigType.Default
         };
     }
 
-    async startInstances(): Promise<void> {
+    public addPlatform(platform: Platform) {
+        this.platforms[platform.id] = platform;
+    }
+
+    public getPlatform(id: string): Platform {
+        return this.platforms[id];
+    }
+
+    public async startInstances(): Promise<void> {
         this.instances = new InstanceManager(this, this.rootPath + '/instances');
         this.instances.loadInstances();
     }
 
-    getInstance(id: string): Instance | void {
+    public getInstance(id: string): Instance | void {
         return this.instances.get(id);
     }
 
-    getInstances(): Instance[] {
+    public getInstances(): Instance[] {
         return this.instances.getAll();
+    }
+
+    public get tempPath(): string {
+        return this.rootPath + '/temp';
     }
 };
