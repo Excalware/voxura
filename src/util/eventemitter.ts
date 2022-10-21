@@ -1,3 +1,4 @@
+type Callback = (...args: any[]) => void;
 interface Listener {
     name: string,
     callback: (...data: any[]) => void
@@ -11,11 +12,16 @@ export default class EventEmitter {
         );
     }
 
-    public listenForEvent(name: string, callback) {
-        this.listeners.push({ name, callback });
+    public listenForEvent(name: string, callback: Callback) {
+        const obj = { name, callback };
+        this.listeners.push(obj);
+
+        return () => {
+            this.listeners.filter(l => l !== obj);
+        };
     }
 
-    public unlistenForEvent(name: string, callback) {
+    public unlistenForEvent(name: string, callback: Callback) {
         this.listeners = this.listeners.filter(l => l.name !== name && l.callback !== callback);
     }
 };
