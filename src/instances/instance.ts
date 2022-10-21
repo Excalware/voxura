@@ -9,6 +9,7 @@ import { exists, readBinaryFile } from '@tauri-apps/api/fs';
 
 import type Mod from '../util/mod';
 import type Account from '../auth/account';
+import EventEmitter from '../util/eventemitter';
 import type { Voxura } from '../voxura';
 import type PlatformMod from '../platforms/mod';
 import type InstanceManager from './manager';
@@ -16,6 +17,11 @@ import { Download, DownloadType } from '../downloader';
 import { MINECRAFT_RESOURCES_URL } from '../util/constants';
 import { fileExists, filesExist, readJsonFile, getModByFile, mapLibraries, writeJsonFile } from '../util';
 
+export enum InstanceState {
+    None,
+    Launching,
+    GameRunning
+};
 enum InstanceGameType {
     MinecraftJava,
     MinecraftBedrock
@@ -88,10 +94,11 @@ const DEFAULT_CONFIG: InstanceConfig = {
     resolution: [900, 500],
     modifications: []
 };
-export default class Instance {
+export default class Instance extends EventEmitter {
     public id: string;
     public name: string;
     public icon?: Uint8Array | void;
+    public state: InstanceState = InstanceState.None;
     public config: InstanceConfig;
     public modifications: Mod[];
     private path: string;
@@ -101,6 +108,7 @@ export default class Instance {
     private readingMods: boolean = false;
     
     public constructor(manager: InstanceManager, name: string, path: string) {
+        super();
         this.manager = manager;
         this.voxura = manager.voxura;
 
@@ -253,7 +261,11 @@ export default class Instance {
     }
 
     public async launch(): Promise<void> {
+        if (this.state !== InstanceState.None)
+            throw new Error('Instance state must be InstanceState.None');
+
         console.log('[voxura.instances]: Launching', this);
+        this.setState(InstanceState.Launching);
 
         switch (this.gameType) {
             case InstanceGameType.MinecraftJava:
@@ -302,6 +314,8 @@ export default class Instance {
                     args: javaArgs,
                     javaPath: await this.voxura.java.getExecutable(manifest.javaVersion.majorVersion)
                 });
+                this.setState(InstanceState.GameRunning);
+
                 listen(eventId, ({ payload: { type, data }}: { payload: { type: string, data: string } }) => {
                     switch(type) {
                         case 'out':
@@ -312,6 +326,7 @@ export default class Instance {
                             break;
                         case 'exit':
                             console.warn('game exited');
+                            this.setState(InstanceState.None);
                             break;
                     }
                 });
@@ -433,7 +448,7 @@ export default class Instance {
                 path: this.modsPath
             }).then(m => m.map(getModByFile));
 
-        this.manager.emitEvent('listChanged');
+        this.emitEvent('changed');
         this.readingMods = false;
 
         return this.modifications;
@@ -445,19 +460,24 @@ export default class Instance {
         if (version)
             this.config.loader.version = version;
 
-        this.manager.emitEvent('listChanged');
+        this.emitEvent('changed');
         return this.saveConfig();
     }
 
     public changeVersion(version: string): Promise<void> {
         this.config.loader.game = version;
 
-        this.manager.emitEvent('listChanged');
+        this.emitEvent('changed');
         return this.saveConfig();
     }
 
     private saveConfig(): Promise<void> {
         return writeJsonFile(this.configPath, this.config);
+    }
+
+    private setState(state: InstanceState) {
+        this.state = state;
+        this.emitEvent('changed');
     }
 
     public get modsPath() {
@@ -492,6 +512,14 @@ export default class Instance {
 
     public get isModded() {
         return this.loaderType === InstanceLoaderType.Modified;
+    }
+
+    public get isRunning() {
+        return this.state === InstanceState.GameRunning;
+    }
+
+    public get isLaunching() {
+        return this.state === InstanceState.Launching;
     }
 
     public get base64Icon(): string | null {
