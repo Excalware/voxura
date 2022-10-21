@@ -41,7 +41,9 @@ interface AccountJson {
 };
 export default class Authentication extends EventEmitter {
     public accounts: Account[];
-    private data: AccountJson;
+    private data: AccountJson = {
+        data: []
+    };
     private voxura: Voxura;
     private currentAccount?: Account;
 
@@ -69,6 +71,7 @@ export default class Authentication extends EventEmitter {
         this.accounts.push(account);
         this.data.data = this.accounts.map(a => a.data);
 
+        await this.saveToFile();
         this.emitEvent('accountsChanged');
         return account;
     }
@@ -78,10 +81,14 @@ export default class Authentication extends EventEmitter {
     }
 
     public async loadFromFile(): Promise<void> {
-        this.data = await readJsonFile<AccountJson>(this.dataPath);
-        this.accounts = this.data.data.map(d => new Account(this, d));
-        if (this.data.selected)
-            this.currentAccount = this.accounts.find(a => a.uuid === this.data.selected);
+        try {
+            this.data = await readJsonFile<AccountJson>(this.dataPath);
+            this.accounts = this.data.data.map(d => new Account(this, d));
+            if (this.data.selected)
+                this.currentAccount = this.accounts.find(a => a.uuid === this.data.selected);
+        } catch(err) {
+            console.warn(`Error while loading from file:`, err);
+        }
     }
 
     public async refreshAccounts(): Promise<void> {

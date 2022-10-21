@@ -53,6 +53,8 @@ export async function getMicrosoftToken(code: string) {
         body: Body.json({ code }),
         method: 'POST',
     });
+    if (data.error)
+        throw new Error(data.message);
 
     console.warn('[voxura.auth]: Acquired Microsoft token.');
     return {
@@ -68,6 +70,8 @@ export async function refreshMicrosoftToken(refreshToken: string) {
         body: Body.json({ refreshToken }),
         method: 'POST'
     });
+    if (data.error)
+        throw new Error(data.message);
 
     console.warn('[voxura.auth]: Refreshed Microsoft token.');
     return {
@@ -91,11 +95,11 @@ export async function getMinecraftToken(token: string, userHash: string) {
     return {
         token: data.access_token,
         tokenType: data.token_type,
-        expireDate: new Date().getTime() + data.expires_in * 1000
+        expireDate: Date.now() + data.expires_in * 1000
     };
 };
 
-const refreshOrder: string[] = ['microsoft', 'xbox', 'xsts', 'xsts2', 'minecraft'];
+const refreshOrder = ['microsoft', 'xbox', 'xsts', 'xsts2', 'minecraft'];
 const refreshFunctions = {
     xbox: (d: AccountData) =>
         getXboxToken(d.microsoft.token).then(a => d.xbox = a),
