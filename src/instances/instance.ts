@@ -14,7 +14,7 @@ import type { Voxura } from '../voxura';
 import type PlatformMod from '../platforms/mod';
 import type InstanceManager from './manager';
 import { Download, DownloadType } from '../downloader';
-import { MINECRAFT_RESOURCES_URL } from '../util/constants';
+import { DEFAULT_INSTANCE_ICONS, MINECRAFT_RESOURCES_URL } from '../util/constants';
 import { fileExists, filesExist, readJsonFile, getModByFile, mapLibraries, writeJsonFile } from '../util';
 
 export enum InstanceState {
@@ -526,7 +526,19 @@ export default class Instance extends EventEmitter {
         return this.icon ? Buffer.from(this.icon).toString('base64') : null;
     }
 
+    public get defaultIcon(): string {
+        const name = this.name;
+        let hash = 0;
+        for (let i = 0; i < name.length; i++)
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        hash = Math.abs(hash);
+
+        if (hash % 69420 === 0)
+            return DEFAULT_INSTANCE_ICONS[7];
+        return DEFAULT_INSTANCE_ICONS[Math.floor(hash % 7)];
+    }
+
     public get webIcon(): string {
-        return this.icon ? `data:image/png;base64,${this.base64Icon}` : 'img/icons/unknown_mod.svg';
+        return this.icon ? `data:image/png;base64,${this.base64Icon}` : this.defaultIcon;
     }
 };
