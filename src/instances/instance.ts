@@ -471,7 +471,7 @@ export default class Instance extends EventEmitter {
         return this.saveConfig();
     }
 
-    private saveConfig(): Promise<void> {
+    public saveConfig(): Promise<void> {
         return writeJsonFile(this.configPath, this.config);
     }
 
