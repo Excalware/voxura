@@ -38,6 +38,7 @@ export interface RustMod {
     meta_name: string
 };
 interface InstanceConfig {
+    id?: string,
     ram: number,
     loader: {
         game: string,
@@ -99,7 +100,7 @@ export default class Instance extends EventEmitter {
     public name: string;
     public icon?: Uint8Array | void;
     public state: InstanceState = InstanceState.None;
-    public config: InstanceConfig;
+    public config: InstanceConfig = DEFAULT_CONFIG;
     public modifications: Mod[];
     private path: string;
     private voxura: Voxura
@@ -115,7 +116,6 @@ export default class Instance extends EventEmitter {
         this.id = uuidv4();
         this.name = name;
         this.path = path;
-        this.config = DEFAULT_CONFIG;
         this.gameType = InstanceGameType.MinecraftJava;
         this.modifications = [];
     }
@@ -130,6 +130,13 @@ export default class Instance extends EventEmitter {
         this.icon = await readBinaryFile(this.path + '/icon.png').catch(console.log);
         this.config = await readJsonFile<InstanceConfig>(this.configPath).catch(console.log) ?? DEFAULT_CONFIG;
         this.manager.emitEvent('listChanged');
+
+        if (this.config.id)
+            this.id = this.config.id;
+        else {
+            this.config.id = this.id;
+            await this.saveConfig();
+        }
     }
 
     public async installMod(mod: PlatformMod<any>): Promise<void> {
@@ -266,6 +273,9 @@ export default class Instance extends EventEmitter {
 
         console.log('[voxura.instances]: Launching', this);
         this.setState(InstanceState.Launching);
+
+        this.manager.store.recent = [this.id, ...this.manager.store.recent.filter(r => r !== this.id)];
+        this.manager.saveStore().then(() => this.manager.emitEvent('changed'));
 
         switch (this.gameType) {
             case InstanceGameType.MinecraftJava:

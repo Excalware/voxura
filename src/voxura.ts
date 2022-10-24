@@ -45,7 +45,8 @@ export class Voxura {
 
     public async startInstances(): Promise<void> {
         this.instances = new InstanceManager(this, this.rootPath + '/instances');
-        this.instances.loadInstances();
+        await this.instances.init();
+        await this.instances.loadInstances();
     }
 
     public getInstance(id: string): Instance | void {

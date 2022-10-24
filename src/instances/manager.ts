@@ -1,17 +1,30 @@
-import { Voxura } from '../voxura';
 import { exists, readDir, createDir } from '@tauri-apps/api/fs';
 
 import Instance from './instance';
+import { Voxura } from '../voxura';
 import EventEmitter from '../util/eventemitter';
+import { notEmpty, readJsonFile, writeJsonFile } from '../util';
+interface InstanceManagerStore {
+    recent: string[]
+};
+
+const DEFAULT_STORE: InstanceManagerStore = {
+    recent: []
+};
 export default class InstanceManager extends EventEmitter {
+    public store: InstanceManagerStore = DEFAULT_STORE;
     public voxura: Voxura;
     private path: string;
     private instances: Array<Instance> = new Array<Instance>();
 
     constructor(voxura: Voxura, path: string) {
         super();
-        this.voxura = voxura;
         this.path = path;
+        this.voxura = voxura;
+    }
+
+    async init() {
+        this.store = await readJsonFile<InstanceManagerStore>(this.storePath).catch(console.log) ?? DEFAULT_STORE;
     }
 
     get(id: string): Instance | void {
@@ -26,21 +39,14 @@ export default class InstanceManager extends EventEmitter {
         return this.instances.find(i => i.name === name);
     }
 
+    getRecent(): Instance[] {
+        return this.store.recent.map(id => this.get(id)).filter((s): s is Instance => !!s);
+    }
+
     async loadInstances(): Promise<void> {
         const entries = await readDir(this.path);
-        //i was supposed to do this for reading mods lol oops
-        /*await Promise.all(entries.map(entry => new Promise<void>(async resolve => {
-            if (entry.name)
-                if (!this.instances.some(i => i.name == entry.name)) {
-                    const instance = new Instance(this, entry.name, entry.path);
-                    await instance.init();
-
-                    this.instances.push(instance);
-                }
-            resolve();
-        })));*/
         for (const entry of entries)
-            if (entry.name)
+            if (entry.name && entry.children)
                 if (!this.instances.some(i => i.name == entry.name)) {
                     const instance = new Instance(this, entry.name, entry.path);
                     await instance.init();
@@ -71,6 +77,10 @@ export default class InstanceManager extends EventEmitter {
         return instance;
     }
 
+    public saveStore(): Promise<void> {
+        return writeJsonFile(this.storePath, this.store);
+    }
+
     get assetsPath() {
         return this.voxura.rootPath + '/assets';
     }
@@ -81,5 +91,9 @@ export default class InstanceManager extends EventEmitter {
 
     get librariesPath() {
         return this.voxura.rootPath + '/libraries';
+    }
+
+    private get storePath() {
+        return this.path + '/store.json';
     }
 };
