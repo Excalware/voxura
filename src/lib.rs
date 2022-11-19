@@ -1,6 +1,10 @@
 use std::io::{ BufRead, BufReader };
 use std::process::Stdio;
 use tauri::Manager;
+use tauri::{
+    plugin::{ Builder, TauriPlugin },
+    Runtime
+};
 
 use rand::{ distributions::Alphanumeric, Rng };
 fn gen_log_str() -> String {
@@ -18,7 +22,7 @@ struct LogPayload {
 }
 
 #[tauri::command]
-pub fn voxura_launch(app_handle: tauri::AppHandle, cwd: String, java_path: String, args: Vec<String>) -> String {
+fn launch<R: Runtime>(app_handle: tauri::AppHandle<R>, cwd: String, java_path: String, args: Vec<String>) -> String {
     let logger = gen_log_str();
     let _logger = logger.clone();
     std::thread::spawn(move || {
@@ -110,7 +114,7 @@ fn read_mod(path: &Path) -> Result<Mod, String> {
 }
 
 #[tauri::command]
-pub fn voxura_read_mods(path: String) -> Vec<Mod> {
+fn read_mods(path: String) -> Vec<Mod> {
     let mut mods = Vec::new();
     for path in fs::read_dir(path).unwrap() {
         let meta = read_mod(path.unwrap().path().as_path());
@@ -132,7 +136,7 @@ struct DownloadPayload {
 use std::cmp::min;
 use futures::StreamExt;
 
-async fn download_file(app_handle: tauri::AppHandle, id: String, path: String, url: String) -> Result<(), reqwest::Error> {
+async fn download_file2<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, path: String, url: String) -> Result<(), reqwest::Error> {
     let client = reqwest::Client::new();
     let response = client.get(url).send().await?;
 
@@ -165,12 +169,12 @@ async fn download_file(app_handle: tauri::AppHandle, id: String, path: String, u
 }
 
 #[tauri::command]
-pub fn voxura_download_file(app_handle: tauri::AppHandle, id: String, path: String, url: String) {
-    tauri::async_runtime::spawn(download_file(app_handle, id, path, url));
+fn download_file<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, path: String, url: String) {
+    tauri::async_runtime::spawn(download_file2(app_handle, id, path, url));
 }
 
 #[tauri::command]
-pub fn voxura_extract_archive(app_handle: tauri::AppHandle, id: String, target: String, path: String) {
+fn extract_archive<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, target: String, path: String) {
     tauri::async_runtime::spawn(async move {
         let file = std::fs::File::open(target).unwrap();
         let mut archive = zip::ZipArchive::new(file).unwrap();
@@ -191,7 +195,7 @@ pub fn voxura_extract_archive(app_handle: tauri::AppHandle, id: String, target: 
 }
 
 #[tauri::command]
-pub fn voxura_extract_archive_contains(app_handle: tauri::AppHandle, id: String, target: String, path: String, contains: String) {
+fn extract_archive_contains<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, target: String, path: String, contains: String) {
     tauri::async_runtime::spawn(async move {
         fs::create_dir_all(Path::new(&path)).unwrap();
 
@@ -243,7 +247,7 @@ pub fn voxura_extract_archive_contains(app_handle: tauri::AppHandle, id: String,
 use std::collections::HashMap;
 
 #[tauri::command]
-pub fn voxura_files_exist(files: Vec<String>) -> HashMap<String, bool> {
+fn files_exist(files: Vec<String>) -> HashMap<String, bool> {
     let mut results = HashMap::new();
     for path in &files {
         results.insert(path.to_string(), Path::new(path).exists());
@@ -283,4 +287,17 @@ mod child_runner {
             .spawn()
             .expect("failed to run child program")
     }
+}
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+    Builder::new("voxura")
+    .invoke_handler(tauri::generate_handler![
+        launch,
+        read_mods,
+        files_exist,
+        download_file,
+        extract_archive,
+        extract_archive_contains
+    ])
+    .build()
 }

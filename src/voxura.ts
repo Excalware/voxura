@@ -6,20 +6,16 @@ import InstanceManager from './instances/manager';
 import Modrinth from './platforms/modrinth';
 import type Platform from './platforms';
 import type Instance from './instances/instance';
-enum InstanceConfigType {
-    Default, // not actually a thing yet!
-    mdpkm
-};
 export interface VoxuraConfig {
-    instanceConfigType: InstanceConfigType
+    
 };
 export class Voxura {
     public auth: Authentication;
     public java: JavaManager;
     public config: VoxuraConfig;
     public rootPath: string;
-    public platforms: { [key: string]: Platform };
-    public instances: InstanceManager;
+    public platforms: Record<string, Platform>;
+    public instances!: InstanceManager;
     public downloader: Downloader;
 
     public constructor(path: string, config?: VoxuraConfig) {
@@ -31,7 +27,7 @@ export class Voxura {
             modrinth: new Modrinth()
         };
         this.config = config ?? {
-            instanceConfigType: InstanceConfigType.Default
+            
         };
     }
 
@@ -60,4 +56,15 @@ export class Voxura {
     public get tempPath(): string {
         return this.rootPath + '/temp';
     }
+};
+export * as Util from './util';
+
+import QuiltLoader from './instances/component/quilt-loader';
+import FabricLoader from './instances/component/fabric-loader';
+import MinecraftJava from './instances/component/minecraft-java';
+import PlaceholderComponent from './instances/component/placeholder';
+
+export const COMPONENT_MAP = [MinecraftJava, FabricLoader, QuiltLoader];
+export function getComponent(id: string) {
+    return COMPONENT_MAP.find(c => c.id === id) ?? PlaceholderComponent;
 };

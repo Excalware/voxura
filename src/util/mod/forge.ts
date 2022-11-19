@@ -8,7 +8,6 @@ export interface ForgeMetadata {
 export default class ForgeMod extends Mod {
     public icon?: Buffer;
     public loader: string = 'forge';
-    private metadata?: any;
     constructor(name: string, filePath: string, metadata: string) {
         super(name, filePath);
         try {

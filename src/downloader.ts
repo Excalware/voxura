@@ -1,8 +1,8 @@
-import { invoke } from '@tauri-apps/api';
 import { listen } from '@tauri-apps/api/event';
 import { v4 as uuidv4 } from 'uuid';
 
 import EventEmitter from './util/eventemitter';
+import { invokeTauri } from './util';
 import type { Voxura } from './voxura';
 
 interface DownloadPayload {
@@ -43,7 +43,7 @@ export default class Downloader extends EventEmitter {
         this.emitEvent('changed');
         this.emitEvent('downloadStarted', download);
 
-        invoke('voxura_download_file', { id: download.id, url, path });
+        invokeTauri('download_file', { id: download.id, url, path });
 
         return download.waitForFinish().then(() => download);
     }
@@ -57,7 +57,7 @@ export default class Downloader extends EventEmitter {
         this.emitEvent('changed');
         this.emitEvent('downloadStarted', download);
 
-        invoke('voxura_extract_archive', { id: download.id, target, path });
+        invokeTauri('extract_archive', { id: download.id, target, path });
 
         return download.waitForFinish();
     }

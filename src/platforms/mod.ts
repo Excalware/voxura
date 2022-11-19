@@ -1,15 +1,15 @@
-import { fetch, ResponseType } from '@tauri-apps/api/http';
+import { fetch } from '@tauri-apps/api/http';
 
 import Project from './project';
 import type Instance from '../instances/instance';
 
-enum ModSide {
+export enum ModSide {
     Client,
     Server,
     Universal,
     Unknown
 };
-export default abstract class Mod<T> extends Project<T> {
+export default abstract class Mod extends Project {
     public getSide(): ModSide {
         const client = this.data.client_side, server = this.data.server_side;
         if(!client)
@@ -31,7 +31,7 @@ export default abstract class Mod<T> extends Project<T> {
         const { loader } = instance.config;
         const versions = await this.getVersions();
         return versions.find(({ loaders, game_versions }) =>
-            loaders.some(l => l === loader.type) && game_versions.some(v => v === loader.game)
+            loaders.some((l: any) => l === loader.type) && game_versions.some((v: any) => v === loader.game)
         );
     }
 };

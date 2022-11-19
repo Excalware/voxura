@@ -47,7 +47,7 @@ export default class Authentication extends EventEmitter {
     private voxura: Voxura;
     private currentAccount?: Account;
 
-    constructor(voxura: Voxura) {
+    public constructor(voxura: Voxura) {
         super();
         this.voxura = voxura;
         this.accounts = [];

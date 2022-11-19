@@ -1,10 +1,10 @@
 import { fetch } from '@tauri-apps/api/http';
-import { invoke } from '@tauri-apps/api';
 import { arch, platform } from '@tauri-apps/api/os';
-import { readDir, exists } from '@tauri-apps/api/fs';
+import { readDir, createDir } from '@tauri-apps/api/fs';
 
 import type { Voxura } from './voxura';
 import { DownloadType } from './downloader';
+import { fileExists, invokeTauri } from './util';
 const systemName = await platform().then((p: string) => ({
     win32: 'windows'
 }[p] ?? p));
@@ -36,7 +36,11 @@ export default class JavaManager {
     }
 
     public async getExecutable(version: number): Promise<string | void> {
-        const entries = (await readDir(this.path)).filter(f => f.name);
+        const path = this.path;
+        if (!await fileExists(path))
+            await createDir(path);
+
+        const entries = (await readDir(path)).filter(f => f.name);
         const latest = entries.filter(f => f.name?.startsWith(`jdk-${version}`) || f.name?.startsWith(`jdk${version}`))
         .sort((a, b) => parseInt(a.name?.replace(/\D/g, '') ?? '') - parseInt(b.name?.replace(/\D/g, '') ?? ''))
         .reverse()[0];
@@ -60,7 +64,7 @@ export default class JavaManager {
         if (latest) {
             const binary = latest.binary.package;
             const path = `${this.voxura.tempPath}/${binary.name}`;
-            if (!(await exists(path) as any)) {
+            if (!await fileExists(path)) {
                 const download = await this.voxura.downloader.downloadFile(path, binary.link,
                     `Eclipse Temurin Java Development Kit ${latest.version.openjdk_version}`, 'img/icons/temurin.png'
                 );
@@ -68,7 +72,7 @@ export default class JavaManager {
                 download.type = DownloadType.Extract;
                 download.update(0, 2);
 
-                invoke('voxura_extract_archive', { id: download.id, target: path, path: this.path });
+                invokeTauri('extract_archive', { id: download.id, target: path, path: this.path });
 
                 await new Promise<void>(async resolve => {
                     download.listenForEvent('finished', () => {
@@ -77,10 +81,8 @@ export default class JavaManager {
                     });
                 });
                 download.update(prog, total);
-            } else {
+            } else
                 await this.voxura.downloader.extractArchive(path, this.path);
-            }
-
             return `${this.path}/${latest.release_name}/bin/javaw.exe`;
         }
         throw new Error(`No compatible versions were found`);

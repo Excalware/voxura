@@ -8,28 +8,28 @@ export interface FabricMetadata {
     name: string,
     description: string,
     version: string,
-    authors: { [key: number]: {
+    authors: ({
         name: string,
         contact: {
             sources: string,
             homepage: string,
             discord_link: string
         }
-    } | string },
+    } | string)[],
     environment: 'server' | 'client',
-    entrypoints: { [key: string]: any[] },
+    entrypoints: Record<string, any[]>,
     
     icon: string,
     contact: {
         homepage: string
     },
-    depends: { [key: string]: string },
-    custom?: { [key: string]: any }
+    depends: Record<string, string>,
+    custom?: Record<string, any>
 };
 export default class FabricMod extends Mod {
     public icon?: Buffer;
     public loader: string = 'fabric';
-    private metadata?: FabricMetadata;
+    declare public readonly metadata?: FabricMetadata;
     constructor(name: string, filePath: string, metadata: string) {
         super(name, filePath);
         try {
@@ -38,15 +38,19 @@ export default class FabricMod extends Mod {
     }
 
     public get id() {
-        return this.metadata?.id;
+        return this.metadata?.id ?? super.id;
     }
 
     public get name() {
         return this.metadata?.name ?? this.id ?? this.fileName;
     }
 
+    public get description() {
+        return this.metadata?.description ?? super.description;
+    }
+
     public get version() {
-        return this.metadata?.version;
+        return this.metadata?.version ?? super.version;
     }
 
     public get webIcon() {

@@ -1,14 +1,17 @@
 import { platform } from '@tauri-apps/api/os';
 export const PLATFORM = await platform();
 
+export { version as VOXURA_VERSION } from '../../package.json';
+
 export const XBOX_AUTH_BASE = 'https://user.auth.xboxlive.com';
 export const XSTS_AUTH_BASE = 'https://xsts.auth.xboxlive.com';
 export const MINECRAFT_SERVICES_API = 'https://api.minecraftservices.com';
 
 export const MINECRAFT_LIBRARIES_URL = 'https://libraries.minecraft.net';
 export const MINECRAFT_RESOURCES_URL = 'https://resources.download.minecraft.net';
+export const MINECRAFT_VERSION_MANIFEST = 'https://launchermeta.mojang.com/mc/game/version_manifest.json';
 
-//idk why i did it like this
+//idk why did i do it like this :(
 const instanceIconStart = 'img/icons/instances/default';
 export const DEFAULT_INSTANCE_ICONS = [
     instanceIconStart + '1.svg',

@@ -1,5 +1,6 @@
 import { Buffer } from 'buffer';
 import { invoke } from '@tauri-apps/api';
+import { InvokeArgs } from '@tauri-apps/api/tauri';
 import { exists, FsOptions, writeFile, readTextFile } from '@tauri-apps/api/fs';
 
 import Mod from './mod';
@@ -7,7 +8,23 @@ import ForgeMod from './mod/forge';
 import FabricMod from './mod/fabric';
 import UnknownMod from './mod/unknown';
 import type { RustMod } from '../instances/instance';
-import { PLATFORM, MINECRAFT_LIBRARIES_URL } from './constants';
+import { PLATFORM, DEFAULT_INSTANCE_ICONS, MINECRAFT_LIBRARIES_URL } from './constants';
+
+export function getDefaultIcon(name: string) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++)
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    hash = Math.abs(hash);
+
+    if (hash % 69420 === 0)
+        return DEFAULT_INSTANCE_ICONS[7];
+    return DEFAULT_INSTANCE_ICONS[Math.floor(hash % 7)];
+};
+
+export function invokeTauri<T>(cmd: string, args?: InvokeArgs) {
+    return invoke<T>('plugin:voxura|' + cmd, args);
+};
+
 export function readJsonFile<T>(filePath: string, options?: FsOptions): Promise<T> {
     return readTextFile(filePath, options).then(JSON.parse);
 };
@@ -21,7 +38,7 @@ export function fileExists(filePath: string, options?: FsOptions): Promise<boole
 };
 
 export function filesExist(filePathes: string[]): Promise<Record<string, boolean>> {
-    return invoke('voxura_files_exist', { files: filePathes });
+    return invokeTauri('files_exist', { files: filePathes });
 }
 
 export function mavenAsArray(maven: string, nativeString?: string, forceExt?: string): string[] {

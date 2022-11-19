@@ -100,14 +100,22 @@ export default class Modrinth extends Platform {
     public async getMod(id: string): Promise<ModrinthMod> {
         return new ModrinthMod(id, await this.getProjectData(id), this);
     }
+
+    public get displayName() {
+        return 'Modrinth';
+    }
+
+    public get webIcon() {
+        return 'img/icons/platforms/modrinth.svg';
+    }
 };
 
 interface ProjectData {
     project_id: string
 };
-export class ModrinthProject extends Project<ProjectData> {
+export class ModrinthProject extends Project {
     
 };
-export class ModrinthMod extends Mod<ProjectData> implements ModrinthProject {
+export class ModrinthMod extends Mod implements ModrinthProject {
     
 };

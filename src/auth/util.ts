@@ -70,8 +70,10 @@ export async function refreshMicrosoftToken(refreshToken: string) {
         body: Body.json({ refreshToken }),
         method: 'POST'
     });
-    if (data.error)
-        throw new Error(data.message);
+    if (data.error) {
+        console.error('refresh error!', data);
+        throw new Error(data.error_description);
+    }
 
     console.warn('[voxura.auth]: Refreshed Microsoft token.');
     return {
