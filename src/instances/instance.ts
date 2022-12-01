@@ -2,7 +2,7 @@ import pmap from 'p-map-browser';
 import { fetch } from '@tauri-apps/api/http';
 import { Buffer } from 'buffer';
 import { v4 as uuidv4 } from 'uuid';
-import { exists, readBinaryFile } from '@tauri-apps/api/fs';
+import { exists, removeDir, readBinaryFile } from '@tauri-apps/api/fs';
 
 import type Mod from '../util/mod';
 import { Download } from '../downloader';
@@ -14,6 +14,7 @@ import { getComponent } from '../voxura';
 import type PlatformMod from '../platforms/mod';
 import VersionedComponent from './component/versioned-component';
 import type InstanceManager from './manager';
+import UnknownGameComponent from './component/unknown-game';
 import Component, { ComponentType, ComponentJson } from './component';
 import { InstanceState, InstanceStoreType, JavaVersionManifest } from '../types';
 import { fileExists, filesExist, invokeTauri, readJsonFile, getModByFile, writeJsonFile, getDefaultIcon } from '../util';
@@ -47,6 +48,7 @@ export abstract class InstanceStore {
     }
 
     public abstract get memoryAllocation(): number;
+    public abstract set memoryAllocation(value: number);
     public abstract get gameResolution(): [number, number];
     public abstract get dateCreated(): number;
     public abstract get dateUpdated(): number;
@@ -56,7 +58,9 @@ export abstract class InstanceStore {
     public get gameComponent() {
         const component = this.components.find(c => c.type === ComponentType.Game);
         if (!(component instanceof GameComponent))
-            throw new Error();
+            return new UnknownGameComponent(this.instance, {
+                version: '0.0.0'
+            });
         return component;
     }
 };
@@ -100,6 +104,9 @@ export class DefaultInstanceStore extends InstanceStore {
 
     public get memoryAllocation() {
         return this.data.memoryAllocation;
+    }
+    public set memoryAllocation(value: number) {
+        this.data.memoryAllocation = value;
     }
 
     public get gameResolution() {
@@ -182,6 +189,9 @@ export class mdpkmInstanceConfig extends InstanceStore {
 
     public get memoryAllocation() {
         return this.data.ram;
+    }
+    public set memoryAllocation(value: number) {
+        this.data.ram = value;
     }
 
     public get gameResolution() {
@@ -401,6 +411,12 @@ export default class Instance extends EventEmitter {
     public setState(state: InstanceState) {
         this.state = state;
         this.emitEvent('changed');
+    }
+
+    public async delete() {
+        await removeDir(this.path, { recursive: true });
+        this.manager.instances = this.manager.instances.filter(i => i !== this);
+        this.manager.emitEvent('listChanged');
     }
 
     public get gameComponent() {

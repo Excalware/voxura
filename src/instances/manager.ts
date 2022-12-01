@@ -14,8 +14,8 @@ const DEFAULT_STORE: InstanceManagerStore = {
 export default class InstanceManager extends EventEmitter {
     public store: InstanceManagerStore = DEFAULT_STORE;
     public voxura: Voxura;
+    public instances: Array<Instance> = new Array<Instance>();
     private path: string;
-    private instances: Array<Instance> = new Array<Instance>();
 
     public constructor(voxura: Voxura, path: string) {
         super();

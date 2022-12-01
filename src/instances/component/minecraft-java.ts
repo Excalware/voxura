@@ -3,7 +3,6 @@ import { fetch } from '@tauri-apps/api/http';
 import { listen } from '@tauri-apps/api/event';
 import { gte, coerce } from 'semver';
 
-import type Account from '../../auth/account';
 import GameComponent from './game-component';
 import { InstanceState } from '../../types';
 import MinecraftExtension from './minecraft-extension';
@@ -120,7 +119,6 @@ export type MinecraftJavaManifest = {
     minimumLauncherVersion: number;
 };
 
-const ARG_REGEX = /\${*(.*)}/;
 export default class MinecraftJava extends GameComponent {
     public static readonly id = 'minecraft-java-vanilla';
 
