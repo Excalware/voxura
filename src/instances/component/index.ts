@@ -1,4 +1,5 @@
 import type Instance from '../instance';
+import type Platform from '../../platforms';
 export enum ComponentType {
     Game,
     Loader
@@ -30,4 +31,8 @@ export default abstract class InstanceComponent {
     public get type() {
         return (<typeof InstanceComponent>this.constructor).type;
     }
+
+	public getPlatformId(platform: Platform) {
+		return this.id;
+	}
 };

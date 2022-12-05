@@ -2,6 +2,7 @@ import { fetch } from '@tauri-apps/api/http';
 
 import Project from './project';
 import type Instance from '../instances/instance';
+import GameComponent from '../instances/component/game-component';
 
 export enum ModSide {
     Client,
@@ -28,10 +29,11 @@ export default abstract class Mod extends Project {
     }
 
     public async getLatestVersion(instance: Instance) {
-        const { loader } = instance.config;
         const versions = await this.getVersions();
+		const { components } = instance.store;
+		console.log(versions);
         return versions.find(({ loaders, game_versions }) =>
-            loaders.some((l: any) => l === loader.type) && game_versions.some((v: any) => v === loader.game)
+            loaders.some((l: any) => components.some(c => c.getPlatformId(this.source) === l)) && game_versions.some((v: any) => components.some(c => c instanceof GameComponent && c.version === v))
         );
     }
 };

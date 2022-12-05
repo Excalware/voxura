@@ -1,4 +1,5 @@
 import pmap from 'p-map-browser';
+import { t } from 'i18next';
 import { fetch } from '@tauri-apps/api/http';
 import { Buffer } from 'buffer';
 import { v4 as uuidv4 } from 'uuid';
@@ -47,6 +48,8 @@ export abstract class InstanceStore {
         return this.data.id;
     }
 
+	public abstract get category(): string;
+    public abstract set category(value: string);
     public abstract get memoryAllocation(): number;
     public abstract set memoryAllocation(value: number);
     public abstract get gameResolution(): [number, number];
@@ -70,6 +73,7 @@ export type InstanceStoreData = {
 };
 export type DefaultInstanceStoreData = InstanceStoreData & {
     dates: number[];
+	category: string;
     components: ComponentJson[];
     gameResolution: [number, number];
     memoryAllocation: number;
@@ -78,6 +82,7 @@ export class DefaultInstanceStore extends InstanceStore {
     public type = InstanceStoreType.Default;
     public readonly data: DefaultInstanceStoreData = {
         dates: [Date.now(), Date.now()],
+		category: t('mdpkm:instance_category.default'),
         storeType: InstanceStoreType.Default,
         components: [],
         gameResolution: [800, 600],
@@ -102,8 +107,15 @@ export class DefaultInstanceStore extends InstanceStore {
         return super.save();
     }
 
+	public get category() {
+        return this.data.category ?? t('mdpkm:instance_category.default');
+    }
+    public set category(value: string) {
+        this.data.category = value;
+    }
+
     public get memoryAllocation() {
-        return this.data.memoryAllocation;
+        return this.data.memoryAllocation ?? 2;
     }
     public set memoryAllocation(value: number) {
         this.data.memoryAllocation = value;
@@ -138,6 +150,7 @@ export type mdpkmConfigData = InstanceStoreData & {
         type: string,
         version?: string
     };
+	category: string;
     resolution: [number, number];
     dateCreated: number;
     dateUpdated: number;
@@ -152,6 +165,7 @@ export class mdpkmInstanceConfig extends InstanceStore {
             game: '1.0.0',
             type: 'minecraft-java-vanilla'
         },
+		category: t('mdpkm:instance_category.default'),
         storeType: InstanceStoreType.mdpkm,
         resolution: [900, 500],
         dateCreated: Date.now(),
@@ -187,8 +201,14 @@ export class mdpkmInstanceConfig extends InstanceStore {
         return super.save();
     }
 
+	public get category() {
+        return this.data.category ?? t('mdpkm:instance_category.default');
+    }
+    public set category(value: string) {
+        this.data.category = value;
+    }
     public get memoryAllocation() {
-        return this.data.ram;
+        return this.data.ram ?? 2;
     }
     public set memoryAllocation(value: number) {
         this.data.ram = value;
@@ -224,6 +244,7 @@ export default class Instance extends EventEmitter {
     public icon?: Uint8Array | void;
     public store: InstanceStore;
     public state: InstanceState = InstanceState.None;
+	public banner?: Uint8Array | void;
     public manager: InstanceManager;
     public storeType: InstanceStoreType = InstanceStoreType.Default;
     public readingMods: boolean = false;
@@ -252,6 +273,7 @@ export default class Instance extends EventEmitter {
     public async refresh(): Promise<void> {
         let configChanged = false;
         this.icon = await readBinaryFile(this.path + '/icon.png').catch(console.log);
+		this.banner = await readBinaryFile(this.path + '/banner.png').catch(console.log);
         
         if (await fileExists(this.configPath) && !await fileExists(this.storePath)) {
             const storeData = await readJsonFile<any>(this.configPath).catch(console.log);
@@ -273,6 +295,13 @@ export default class Instance extends EventEmitter {
         if (configChanged)
             await this.saveConfig();
     }
+
+	public async setCategory(value: string) {
+		this.store.category = value;
+		await this.saveConfig();
+		
+		this.manager.emitEvent('listChanged');
+	}
 
     public async installMod(mod: PlatformMod): Promise<void> {
         console.log(mod);
@@ -463,6 +492,10 @@ export default class Instance extends EventEmitter {
     public get isLaunching() {
         return this.state === InstanceState.Launching;
     }
+
+	public get isFavourite() {
+		return this.store.category === t('mdpkm:instance_category.favorites');
+	}
 
     public get base64Icon(): string | null {
         return this.icon ? Buffer.from(this.icon).toString('base64') : null;

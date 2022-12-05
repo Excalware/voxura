@@ -1,5 +1,6 @@
 import { fetch } from '@tauri-apps/api/http';
 
+import type Platform from '../../platforms';
 import { ComponentType } from '.';
 import MinecraftExtension from './minecraft-extension';
 import { fileExists, readJsonFile } from '../../util';
@@ -43,6 +44,12 @@ export default class FabricLoader extends MinecraftExtension {
 
         return readJsonFile<MinecraftJavaManifest>(manifestPath);
     }
+
+	public getPlatformId(platform: Platform) {
+		if (platform.id === 'curseforge')
+			return 'Fabric';
+		return this.id;
+	}
 
     protected get apiBase(): string {
         return (<typeof FabricLoader>this.constructor).apiBase;

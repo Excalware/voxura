@@ -1,10 +1,6 @@
-import type Mod from './mod';
 import type Project from './project';
 export default abstract class Platform {
-    public id: string;
-    public constructor(id: string) {
-        this.id = id;
-    }
+    public static id: string;
 
     public abstract search(query: string, options: {
         limit?: number,
@@ -37,4 +33,8 @@ export default abstract class Platform {
     
     public abstract get displayName(): string
     public abstract get webIcon(): string
+
+	public get id() {
+        return (<typeof Platform>this.constructor).id;
+    }
 };

@@ -256,6 +256,19 @@ fn files_exist(files: Vec<String>) -> HashMap<String, bool> {
     results
 }
 
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+    Builder::new("voxura")
+    .invoke_handler(tauri::generate_handler![
+        launch,
+        read_mods,
+        files_exist,
+        download_file,
+        extract_archive,
+        extract_archive_contains
+    ])
+    .build()
+}
+
 #[cfg(windows)]
 mod child_runner {
     use std::str;
@@ -289,15 +302,17 @@ mod child_runner {
     }
 }
 
-pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("voxura")
-    .invoke_handler(tauri::generate_handler![
-        launch,
-        read_mods,
-        files_exist,
-        download_file,
-        extract_archive,
-        extract_archive_contains
-    ])
-    .build()
+#[cfg(unix)]
+mod child_runner {
+    use std::str;
+    use std::process::{ Command, Stdio };
+    pub fn run (program: &str, arguments: &str, cwd: &str, out: Stdio, err: Stdio) -> std::process::Child {
+        Command::new("sh")
+            .current_dir(cwd)
+            .arg(arguments)
+            .stdout(out)
+            .stderr(err)
+            .spawn()
+            .expect("failed to run child program")
+    }
 }

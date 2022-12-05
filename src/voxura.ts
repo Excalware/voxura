@@ -1,3 +1,5 @@
+import { createDir } from '@tauri-apps/api/fs';
+
 import Downloader from './downloader';
 import JavaManager from './java';
 import Authentication from './auth';
@@ -6,12 +8,22 @@ import InstanceManager from './instances/manager';
 import Modrinth from './platforms/modrinth';
 import type Platform from './platforms';
 import type Instance from './instances/instance';
+export type VoxuraStore = {
+	projects: Record<string, {
+		id: string;
+		version: string;
+		platform: string;
+		cachedIcon: string;
+		cachedMetadata: any;
+	}>;
+};
 export interface VoxuraConfig {
     
 };
 export class Voxura {
     public auth: Authentication;
     public java: JavaManager;
+	public store: VoxuraStore;
     public config: VoxuraConfig;
     public rootPath: string;
     public platforms: Record<string, Platform>;
@@ -29,7 +41,22 @@ export class Voxura {
         this.config = config ?? {
             
         };
+		this.store = {
+			projects: {}
+		};
     }
+
+	public async init() {
+		await createDir(this.rootPath);
+
+		const store = await readJsonFile<VoxuraStore>(this.storePath).catch(console.error);
+		if (store)
+			this.store = store;
+	}
+
+	public async saveStore() {
+		return writeJsonFile(this.storePath, this.store);
+	}
 
     public addPlatform(platform: Platform) {
         this.platforms[platform.id] = platform;
@@ -56,6 +83,10 @@ export class Voxura {
     public get tempPath(): string {
         return this.rootPath + '/temp';
     }
+
+	public get storePath(): string {
+		return this.rootPath + '/voxura.json';
+	}
 };
 export * as Util from './util';
 
@@ -63,6 +94,7 @@ import QuiltLoader from './instances/component/quilt-loader';
 import FabricLoader from './instances/component/fabric-loader';
 import MinecraftJava from './instances/component/minecraft-java';
 import PlaceholderComponent from './instances/component/placeholder';
+import { readJsonFile, writeJsonFile } from './util';
 
 export const COMPONENT_MAP = [MinecraftJava, FabricLoader, QuiltLoader];
 export function getComponent(id: string) {
