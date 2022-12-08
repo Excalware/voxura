@@ -1,14 +1,12 @@
 import pmap from 'p-map-browser';
 import { fetch } from '@tauri-apps/api/http';
-import { listen } from '@tauri-apps/api/event';
-import { gte, coerce } from 'semver';
 
 import GameComponent from './game-component';
 import { InstanceState } from '../../types';
 import MinecraftExtension from './minecraft-extension';
 import { Download, DownloadType } from '../../downloader';
 import { PLATFORM, VOXURA_VERSION, MINECRAFT_RESOURCES_URL, MINECRAFT_VERSION_MANIFEST } from '../../util/constants';
-import { fileExists, filesExist, invokeTauri, readJsonFile, mapLibraries, convertPlatform } from '../../util';
+import { fileExists, filesExist, invokeTauri, readJsonFile, mapLibraries, createCommand, convertPlatform } from '../../util';
 
 export type Rule = {
     os?: OsRule,
@@ -60,8 +58,10 @@ export type MinecraftJavaArtifact = MinecraftJavaDownload & {
 };
 export type MinecraftJavaLibrary = {
     name: string;
+    path: string;
     url?: string;
     rules?: MinecraftJavaRule[];
+    natives: any;
     downloads?: {
         artifact: MinecraftJavaArtifact;
     };
@@ -70,6 +70,7 @@ export type MinecraftJavaDownload = {
     url: string;
     size: number;
     sha1: string;
+    natives: any;
 };
 export type MinecraftJavaArgument = string | {
     value: string | string[];
@@ -273,11 +274,6 @@ export default class MinecraftJava extends GameComponent {
         const assetIndex = await this.getAssetIndex(manifest);
         await this.downloadAssets(assetIndex);
 
-        const artifact: MinecraftJavaArtifact = {
-            ...manifest.downloads.client,
-            path: this.instance.clientPath
-        };
-
         const libraries = await this.getLibraries(manifest, instanceManager.librariesPath);
         await this.instance.downloadLibraries(libraries);
 
@@ -287,31 +283,34 @@ export default class MinecraftJava extends GameComponent {
                 manifest.mainClass = await component.getManifest().then(m => m.mainClass);
                 break;
             }
+
+        const javaPath = await instanceManager.voxura.java.getExecutable(manifest.javaVersion.majorVersion);
+        const jvmArgs = this.getJvmArguments(manifest, this.getClassPaths(libraries, this.instance.clientPath), []);
+        const gameArgs = this.getGameArguments(manifest);
         
-        const gameArguments = await this.genArguments(manifest, artifact, libraries);
-        console.log(gameArguments);
-
-        const eventId: string = await invokeTauri('launch', {
-            cwd: this.instance.path,
-            args: gameArguments,
-            javaPath: await instanceManager.voxura.java.getExecutable(manifest.javaVersion.majorVersion)
+        const command = createCommand([
+            javaPath,
+            ...jvmArgs,
+            manifest.mainClass,
+            ...gameArgs
+        ], { cwd: this.instance.path })
+        .on('close', data => {
+            console.log('command closed:', data.code, data.signal);
+            this.instance.setState(InstanceState.None);
+        })
+        .on('error', error => {
+            console.log('command error:', error);
         });
-        this.instance.setState(InstanceState.GameRunning);
 
-        listen(eventId, ({ payload: { type, data }}: { payload: { type: string, data: string } }) => {
-            switch(type) {
-                case 'out':
-                    console.log(data);
-                    break;
-                case 'err':
-                    console.warn(data);
-                    break;
-                case 'exit':
-                    console.warn('game exited');
-                    this.instance.setState(InstanceState.None);
-                    break;
-            }
+        command.stdout.on('data', line => {
+            console.log('stdout:', line);
         });
+        command.stderr.on('data', line => {
+            console.error('stderr:', line);
+        });
+
+        const child = await command.spawn();
+        console.log('child process id:', child.pid);
     }
 
     private async getLibraries(manifest: MinecraftJavaManifest, path: string, libraries: MinecraftJavaLibrary[] = []) {
@@ -323,80 +322,54 @@ export default class MinecraftJava extends GameComponent {
         return libraries;
     }
 
-    private async genArguments(manifest: MinecraftJavaManifest, artifact: any, libraries: MinecraftJavaLibrary[]) {
-        const args: string[] = [];
-        const memory = this.instance.store.memoryAllocation * 1000;
-        const instancePath = this.instance.path;
-        if (manifest.assets !== 'legacy' && gte(coerce(manifest.assets) as any, coerce('1.13') as any)) {
-            //args.push(...this.processArguments(account, artifact, manifest, libraries, manifest.arguments.jvm));
-            args.push(...this.getJvmArguments(manifest, [...libraries, artifact]
-                .filter(l => !l.natives)
-                .map(l => `"${l.path.replace(/\/+|\\+/g, '/')}"`)
-                .join(';')
-            ));
+    private getClassPaths(libraries: MinecraftJavaLibrary[], clientPath: string) {
+        const paths = libraries.map(l => l.path.replace(/\/+|\\+/g, '/'));
+        paths.push(clientPath);
 
-            args.push(`-Xmx${memory}m`, `-Xms${memory}m`);
-            args.push(`-Dminecraft.applet.TargetDirectory="${instancePath}"`);
-            if (manifest.logging)
-                args.push(manifest.logging.client?.argument ?? '');
-
-            args.push(manifest.mainClass);
-            args.push(...this.getGameArguments(manifest));
-            //args.push(...this.processArguments(account, artifact, manifest, libraries, manifest.arguments.game));
-        } else {
-            args.push('-cp');
-            args.push([...libraries, artifact]
-                .filter(l => !l.natives)
-                .map(l => `"${l.path.replace(/\/+|\\+/g, '/')}"`)
-                .join(';')
-            );
-
-            args.push(`-Xmx${memory}m`, `-Xms${memory}m`);
-            //args.push(...this.processArguments(account, artifact, manifest, libraries, manifest.arguments.jvm));
-
-            args.push(`-Djava.library.path="${instancePath}/natives"`);
-            args.push(`-Dminecraft.applet.TargetDirectory="${instancePath}"`);
-            if (manifest.logging)
-                args.push(manifest.logging.client?.argument ?? '');
-
-            args.push(manifest.mainClass);
-            //args.push(...this.processArguments(account, artifact, manifest, libraries, manifest.minecraftArguments?.split(' ')));
-        }
-        return args.map(a => a.toString());
+        return paths.join(classPathSeperator());
     }
 
     private parseArguments(args: Argument[], parsedArgs: string[], parser: (arg: string) => string) {
         for (const arg of args) {
             if (typeof arg === 'string')
-                parsedArgs.push(`"${parser(arg)}"`);
+                parsedArgs.push(parser(arg));
             else {
                 if (arg.rules?.every(parseRule) ?? true) {
                     const { value } = arg;
                     if (typeof value === 'string')
-                        parsedArgs.push(`"${parser(value)}"`);
+                        parsedArgs.push(parser(value));
                     else
                         for (const val of value)
-                            parsedArgs.push(`"${parser(val)}"`);
+                            parsedArgs.push(parser(val));
                 }
             }
         }
     }
 
-    private getJvmArguments(manifest: MinecraftJavaManifest, classPaths: string) {
+    private getJvmArguments(manifest: MinecraftJavaManifest, classPaths: string, customArgs: string[]) {
         const args = manifest.arguments.jvm;
         const parsed: string[] = [];
         if (args)
             this.parseArguments(args, parsed, arg =>
                 this.parseJvmArgument(arg, manifest, classPaths)
             );
+        else {
+            parsed.push(`-Djava.library.path=${this.instance.nativesPath}`);
+            parsed.push('-cp', classPaths);
+        }
+
+        // TODO: implement a min-max range
+        const memory = this.instance.store.memoryAllocation * 1000;
+        parsed.push(`-Xmx${memory}M`);
         
+        parsed.push(...customArgs);
         return parsed;
     }
 
     private parseJvmArgument(argument: string, manifest: MinecraftJavaManifest, classPaths: string) {
         return argument
-        .replace('${natives_directory}', '"./natives"')
-        .replace('${library_directory}', `"../../libraries"`)
+        .replace('${natives_directory}', './natives')
+        .replace('${library_directory}', '../../libraries"')
         .replace('${classpath_separator}', classPathSeperator())
         .replace('${launcher_name}', 'voxura')
         .replace('${launcher_version}', VOXURA_VERSION)

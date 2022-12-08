@@ -47,7 +47,7 @@ export class Voxura {
     }
 
 	public async init() {
-		await createDir(this.rootPath);
+		await createDir(this.rootPath, { recursive: true });
 
 		const store = await readJsonFile<VoxuraStore>(this.storePath).catch(console.error);
 		if (store)

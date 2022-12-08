@@ -24,7 +24,7 @@ export default class InstanceManager extends EventEmitter {
     }
 
     public async init() {
-		await createDir(this.path);
+		await createDir(this.path, { recursive: true });
         this.store = await readJsonFile<InstanceManagerStore>(this.storePath).catch(console.log) ?? DEFAULT_STORE;
     }
 
@@ -66,7 +66,7 @@ export default class InstanceManager extends EventEmitter {
 
     public async createInstance(name: string): Promise<Instance> {
         const path = `${this.path}/${name}`;
-        await createDir(path);
+        await createDir(path, { recursive: true });
 
         const instance = new Instance(this, name, path);
         await instance.init();

@@ -1,5 +1,6 @@
 use std::io::{ BufRead, BufReader };
-use std::process::Stdio;
+use std::process::{ Stdio, Command };
+
 use tauri::Manager;
 use tauri::{
     plugin::{ Builder, TauriPlugin },
@@ -22,11 +23,26 @@ struct LogPayload {
 }
 
 #[tauri::command]
-fn launch<R: Runtime>(app_handle: tauri::AppHandle<R>, cwd: String, java_path: String, args: Vec<String>) -> String {
+fn launch<R: Runtime>(
+    app_handle: tauri::AppHandle<R>,
+    class: String,
+    jvm_args: Vec<String>,
+    game_args: Vec<String>,
+    directory: String,
+    java_path: String
+) -> String {
     let logger = gen_log_str();
     let _logger = logger.clone();
     std::thread::spawn(move || {
-        let mut child = child_runner::run(&java_path, &args.join(" "), &cwd, Stdio::piped(), Stdio::piped());
+        let mut child = Command::new(java_path)
+            .args(jvm_args)
+            .arg(class)
+            .args(game_args)
+            .current_dir(directory)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("failed to run child program");
         BufReader::new(child.stdout.take().unwrap())
             .lines()
             .filter_map(| line | line.ok())
@@ -65,6 +81,7 @@ fn launch<R: Runtime>(app_handle: tauri::AppHandle<R>, cwd: String, java_path: S
 use std::fs;
 use std::io::Read;
 use std::path::Path;
+use flate2::read::GzDecoder;
 
 #[derive(Clone, serde::Serialize)]
 pub struct Mod {
@@ -176,15 +193,28 @@ fn download_file<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, path: 
 #[tauri::command]
 fn extract_archive<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, target: String, path: String) {
     tauri::async_runtime::spawn(async move {
-        let file = std::fs::File::open(target).unwrap();
-        let mut archive = zip::ZipArchive::new(file).unwrap();
-        app_handle.emit_all("download_update", DownloadPayload {
-            id: id.to_string(),
-            total: 2,
-            progress: 1
-        }).unwrap();
+        let path = Path::new(&path);
+        let file = std::fs::File::open(&target).unwrap();
+        if target.ends_with(".zip") {
+            let mut archive = zip::ZipArchive::new(file).unwrap();
+            app_handle.emit_all("download_update", DownloadPayload {
+                id: id.to_string(),
+                total: 2,
+                progress: 1
+            }).unwrap();
 
-        archive.extract(path).unwrap();
+            archive.extract(path).unwrap();
+        } else if target.ends_with(".tar.gz") {
+            let tar = GzDecoder::new(file);
+            let mut archive = tar::Archive::new(tar);
+            app_handle.emit_all("download_update", DownloadPayload {
+                id: id.to_string(),
+                total: 2,
+                progress: 1
+            }).unwrap();
+
+            archive.unpack(path).unwrap();
+        }
 
         app_handle.emit_all("download_update", DownloadPayload {
             id: id.to_string(),
@@ -267,52 +297,4 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         extract_archive_contains
     ])
     .build()
-}
-
-#[cfg(windows)]
-mod child_runner {
-    use std::str;
-    use std::process::{ Command, Stdio };
-    use std::os::windows::process::CommandExt;
-    pub fn run (program: &str, arguments: &str, cwd: &str, out: Stdio, err: Stdio) -> std::process::Child {
-        let launcher = "powershell.exe";
-        let build_string: String;
-        {
-            if arguments.trim() == "" {
-                build_string = format!(r#"& '{}'"#,program);
-            }
-            else {
-                let mut arguments_reformatting: Vec<&str> = Vec::new();
-                for argument in arguments.split(" ") {
-                    arguments_reformatting.push(argument);
-                }
-                let arguments_reformatted = arguments_reformatting.join("','");
-                build_string = format!(r#"& '{}' @('{}')"#,program,arguments_reformatted);
-            }
-        }
-
-        Command::new(launcher)
-            .creation_flags(0x08000000)
-            .current_dir(cwd)
-            .args(&[build_string])
-            .stdout(out)
-            .stderr(err)
-            .spawn()
-            .expect("failed to run child program")
-    }
-}
-
-#[cfg(unix)]
-mod child_runner {
-    use std::str;
-    use std::process::{ Command, Stdio };
-    pub fn run (program: &str, arguments: &str, cwd: &str, out: Stdio, err: Stdio) -> std::process::Child {
-        Command::new("sh")
-            .current_dir(cwd)
-            .arg(arguments)
-            .stdout(out)
-            .stderr(err)
-            .spawn()
-            .expect("failed to run child program")
-    }
 }

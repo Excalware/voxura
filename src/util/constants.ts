@@ -1,4 +1,5 @@
-import { platform } from '@tauri-apps/api/os';
+import { arch, platform } from '@tauri-apps/api/os';
+export const ARCH = await arch();
 export const PLATFORM = await platform();
 
 export { version as VOXURA_VERSION } from '../../package.json';

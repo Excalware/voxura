@@ -1,17 +1,18 @@
 import { fetch } from '@tauri-apps/api/http';
-import { arch, platform } from '@tauri-apps/api/os';
 import { readDir, createDir } from '@tauri-apps/api/fs';
 
 import type { Voxura } from './voxura';
 import { DownloadType } from './downloader';
+import { ARCH, PLATFORM } from './util/constants';
 import { fileExists, invokeTauri } from './util';
-const systemName = await platform().then((p: string) => ({
+
+const systemName = {
     win32: 'windows'
-}[p] ?? p));
-const systemArch = await arch().then((p: string) => ({
+}[PLATFORM as string] ?? PLATFORM;
+const systemArch = {
     x86: 'x32',
     x86_64: 'x64'
-}[p] ?? p));
+}[ARCH as string] ?? ARCH;
 interface AdoptiumVersion {
     binary: {
         os: 'windows' | 'linux' | 'mac',
@@ -35,10 +36,9 @@ export default class JavaManager {
         this.voxura = voxura;
     }
 
-    public async getExecutable(version: number): Promise<string | void> {
+    public async getExecutable(version: number): Promise<string> {
         const path = this.path;
-        if (!await fileExists(path))
-            await createDir(path);
+        await createDir(path, { recursive: true });
 
         const entries = (await readDir(path)).filter(f => f.name);
         const latest = entries.filter(f => f.name?.startsWith(`jdk-${version}`) || f.name?.startsWith(`jdk${version}`))
@@ -47,7 +47,9 @@ export default class JavaManager {
         
         if (!latest)
             return this.downloadVersion(version);
-        return `${latest.path}/bin/java.exe`;
+        if (PLATFORM === 'win32')
+            return `${latest.path}/bin/java.exe`;
+        return `${latest.path}/bin/java`;
     }
 
     private async downloadVersion(version: number): Promise<string> {

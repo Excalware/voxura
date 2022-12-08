@@ -1,6 +1,7 @@
 import { Buffer } from 'buffer';
 import { invoke } from '@tauri-apps/api';
 import { InvokeArgs } from '@tauri-apps/api/tauri';
+import { Command, SpawnOptions } from '@tauri-apps/api/shell';
 import { exists, FsOptions, writeFile, readTextFile } from '@tauri-apps/api/fs';
 
 import Mod from './mod';
@@ -19,6 +20,13 @@ export function getDefaultIcon(name: string) {
     if (hash % 69420 === 0)
         return DEFAULT_INSTANCE_ICONS[7];
     return DEFAULT_INSTANCE_ICONS[Math.floor(hash % 7)];
+};
+
+const isWindows = PLATFORM === 'win32';
+const cmdProgram = isWindows ? 'cmd' : 'sh';
+const cmdArguments = [isWindows ? '/C' : '-c'];
+export function createCommand(args: string[], options?: SpawnOptions) {
+    return new Command(cmdProgram, [...cmdArguments, args.join(' ')], options);
 };
 
 export function invokeTauri<T>(cmd: string, args?: InvokeArgs) {
