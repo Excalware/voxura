@@ -274,7 +274,8 @@ export default class MinecraftJava extends GameComponent {
         const assetIndex = await this.getAssetIndex(manifest);
         await this.downloadAssets(assetIndex);
 
-        const libraries = await this.getLibraries(manifest, instanceManager.librariesPath);
+        //const libraries = await this.getLibraries(manifest, instanceManager.librariesPath);
+		const libraries = await this.getLibraries(manifest, '../../libraries');
         await this.instance.downloadLibraries(libraries);
 
         for (const component of this.instance.store.components)
@@ -288,12 +289,12 @@ export default class MinecraftJava extends GameComponent {
         const jvmArgs = this.getJvmArguments(manifest, this.getClassPaths(libraries, this.instance.clientPath), []);
         const gameArgs = this.getGameArguments(manifest);
         
-        const command = createCommand([
-            javaPath,
-            ...jvmArgs,
-            manifest.mainClass,
-            ...gameArgs
-        ], { cwd: this.instance.path })
+		console.log(javaPath, jvmArgs, gameArgs);
+        const command = createCommand(javaPath, [
+			...jvmArgs,
+			manifest.mainClass,
+			...gameArgs
+		], this.instance.path)
         .on('close', data => {
             console.log('command closed:', data.code, data.signal);
             this.instance.setState(InstanceState.None);
@@ -311,6 +312,9 @@ export default class MinecraftJava extends GameComponent {
 
         const child = await command.spawn();
         console.log('child process id:', child.pid);
+
+		this.instance.processes.push(child);
+		this.instance.setState(InstanceState.None);
     }
 
     private async getLibraries(manifest: MinecraftJavaManifest, path: string, libraries: MinecraftJavaLibrary[] = []) {

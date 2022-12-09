@@ -3,6 +3,7 @@ import { t } from 'i18next';
 import { fetch } from '@tauri-apps/api/http';
 import { Buffer } from 'buffer';
 import { v4 as uuidv4 } from 'uuid';
+import type { Child } from '@tauri-apps/api/shell';
 import { exists, removeDir, readBinaryFile } from '@tauri-apps/api/fs';
 
 import type Mod from '../util/mod';
@@ -246,6 +247,7 @@ export default class Instance extends EventEmitter {
     public state: InstanceState = InstanceState.None;
 	public banner?: Uint8Array | void;
     public manager: InstanceManager;
+	public processes: Child[] = [];
     public storeType: InstanceStoreType = InstanceStoreType.Default;
     public readingMods: boolean = false;
     public hasReadMods: boolean = false;

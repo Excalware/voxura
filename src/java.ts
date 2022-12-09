@@ -6,6 +6,7 @@ import { DownloadType } from './downloader';
 import { ARCH, PLATFORM } from './util/constants';
 import { fileExists, invokeTauri } from './util';
 
+const JAVA_BINARY = PLATFORM === 'win32' ? 'javaw.exe' : 'java';
 const systemName = {
     win32: 'windows'
 }[PLATFORM as string] ?? PLATFORM;
@@ -47,9 +48,7 @@ export default class JavaManager {
         
         if (!latest)
             return this.downloadVersion(version);
-        if (PLATFORM === 'win32')
-            return `${latest.path}/bin/java.exe`;
-        return `${latest.path}/bin/java`;
+        return `${latest.path}/bin/${JAVA_BINARY}`;
     }
 
     private async downloadVersion(version: number): Promise<string> {
@@ -85,7 +84,7 @@ export default class JavaManager {
                 download.update(prog, total);
             } else
                 await this.voxura.downloader.extractArchive(path, this.path);
-            return `${this.path}/${latest.release_name}/bin/javaw.exe`;
+            return `${this.path}/${latest.release_name}/bin/${JAVA_BINARY}`;
         }
         throw new Error(`No compatible versions were found`);
     }
