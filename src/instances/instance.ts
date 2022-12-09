@@ -286,8 +286,6 @@ export default class Instance extends EventEmitter {
         }
         this.storeType = this.store.type;
 
-        /*const loader = getLoaderById(this.config.loader.type);
-        this.loader = new loader(this);*/
         this.manager.emitEvent('listChanged');
 
         if (this.store.id)
@@ -303,6 +301,14 @@ export default class Instance extends EventEmitter {
 		await this.saveConfig();
 		
 		this.manager.emitEvent('listChanged');
+	}
+
+	public async killProcess(process: Child) {
+		await process.kill();
+		this.processes = this.processes.filter(p => p !== process);
+		this.state = this.processes.length ? InstanceState.GameRunning : InstanceState.None;
+
+		this.emitEvent('changed');
 	}
 
     public async installMod(mod: PlatformMod): Promise<void> {
@@ -386,11 +392,7 @@ export default class Instance extends EventEmitter {
         this.manager.store.recent = [this.id, ...this.manager.store.recent.filter(r => r !== this.id)];
         this.manager.saveStore().then(() => this.manager.emitEvent('changed'));
 
-        /*await this.loader.launch().catch(err => {
-            this.setState(InstanceState.None);
-            throw err;
-        });*/
-        await this.gameComponent.launch().catch(err => {
+         await this.gameComponent.launch().catch(err => {
             this.setState(InstanceState.None);
             throw err;
         });
@@ -414,25 +416,6 @@ export default class Instance extends EventEmitter {
         this.emitEvent('changed');
 
         return this.modifications;
-    }
-
-    public changeLoader(type?: any, version?: string): Promise<void> {
-        /*if (type) {
-            this.loader = new type(this);
-            this.config.loader.type = type.id;
-        }
-        if (version)
-            this.config.loader.version = version;*/
-
-        this.emitEvent('changed');
-        return this.saveConfig();
-    }
-
-    public changeVersion(version: string): Promise<void> {
-        //this.config.loader.game = version;
-
-        this.emitEvent('changed');
-        return this.saveConfig();
     }
 
     public saveConfig(): Promise<void> {
