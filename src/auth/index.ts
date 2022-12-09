@@ -1,8 +1,12 @@
+import { open } from '@tauri-apps/api/shell';
+
 import { Voxura } from '../voxura';
 import { readJsonFile, writeJsonFile } from '../util';
 
 import EventEmitter from '../util/eventemitter';
+import { invokeTauri } from '../util';
 import Account, { ProfileType } from './account';
+import { AZURE_CLIENT_ID, AZURE_LOGIN_SCOPE, MICROSOFT_LOGIN_URL } from '../util/constants';
 import { getXboxToken, getXSTSToken, getMicrosoftToken, getMinecraftToken } from './util';
 interface XboxData {
     token: string,
@@ -88,6 +92,22 @@ export default class Authentication extends EventEmitter {
             console.warn(`Error while loading from file:`, err);
         }
     }
+
+	public async requestMicrosoftAccessCode(selectAccount: boolean) {
+		const url = new URL(MICROSOFT_LOGIN_URL);
+		const params = url.searchParams;
+		params.set('scope', AZURE_LOGIN_SCOPE);
+		params.set('client_id', AZURE_CLIENT_ID);
+		params.set('cobrandid', '8058f65d-ce06-4c30-9559-473c9275a65d');
+		params.set('redirect_uri', 'http://localhost:3432');
+		params.set('response_type', 'code');
+
+		if (selectAccount)
+			url.searchParams.set('prompt', 'select_account');
+
+		await open(url.href);
+		return invokeTauri<string>('request_microsoft_code').then(code => code.replace('/?code=', ''));
+	}
 
     public async refreshAccounts(): Promise<void> {
         for (const account of this.accounts)

@@ -1,82 +1,10 @@
-use std::io::{ BufRead, BufReader };
-use std::process::{ Stdio, Command };
-
 use tauri::Manager;
 use tauri::{
     plugin::{ Builder, TauriPlugin },
     Runtime
 };
 
-use rand::{ distributions::Alphanumeric, Rng };
-fn gen_log_str() -> String {
-    return format!("java_logger_{}", rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(8)
-        .map(char::from)
-        .collect::<String>());
-}
-
-#[derive(Clone, serde::Serialize)]
-struct LogPayload {
-    r#type: String,
-    data: String
-}
-
-#[tauri::command]
-fn launch<R: Runtime>(
-    app_handle: tauri::AppHandle<R>,
-    class: String,
-    jvm_args: Vec<String>,
-    game_args: Vec<String>,
-    directory: String,
-    java_path: String
-) -> String {
-    let logger = gen_log_str();
-    let _logger = logger.clone();
-    std::thread::spawn(move || {
-        let mut child = Command::new(java_path)
-            .args(jvm_args)
-            .arg(class)
-            .args(game_args)
-            .current_dir(directory)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .expect("failed to run child program");
-        BufReader::new(child.stdout.take().unwrap())
-            .lines()
-            .filter_map(| line | line.ok())
-            .for_each(| line | {
-                let result = app_handle.emit_all(&_logger, LogPayload {
-                    r#type: "out".into(),
-                    data: line.into()
-                });
-                if !result.is_ok() {
-                    println!("failed to log to window (out): {}", result.unwrap_err());
-                }
-            });
-        BufReader::new(child.stderr.take().unwrap())
-            .lines()
-            .filter_map(| line | line.ok())
-            .for_each(| line | {
-                let result = app_handle.emit_all(&_logger, LogPayload {
-                    r#type: "err".into(),
-                    data: line.into()
-                });
-                if !result.is_ok() {
-                    println!("failed to log to window (err): {}", result.unwrap_err());
-                }
-            });
-        std::thread::spawn(move || {
-            child.wait().unwrap();
-            app_handle.emit_all(&_logger, LogPayload {
-                r#type: "exit".into(),
-                data: "".into()
-            }).unwrap();
-        });
-    });
-    return logger;
-}
+pub mod auth;
 
 use std::fs;
 use std::io::Read;
@@ -286,14 +214,19 @@ fn files_exist(files: Vec<String>) -> HashMap<String, bool> {
     results
 }
 
+#[tauri::command]
+fn request_microsoft_code() -> String {
+	return auth::get_url().unwrap();
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("voxura")
     .invoke_handler(tauri::generate_handler![
-        launch,
         read_mods,
         files_exist,
         download_file,
         extract_archive,
+		request_microsoft_code,
         extract_archive_contains
     ])
     .build()

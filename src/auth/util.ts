@@ -54,7 +54,7 @@ export async function getMicrosoftToken(code: string) {
         method: 'POST',
     });
     if (data.error)
-        throw new Error(data.message);
+        throw new Error(`${data.state}: ${data.message}`);
 
     console.warn('[voxura.auth]: Acquired Microsoft token.');
     return {
@@ -117,11 +117,10 @@ const refreshFunctions = {
 export async function refreshAccount(account: Account) {
     const date = Date.now();
     const data = account.getJson();
-    for (const value of refreshOrder) {
+    for (const value of refreshOrder)
         if (date >= data[value].expireDate) {
             console.warn('[voxura.auth]:', value, 'token expired.');
             await refreshFunctions[value]?.(data);
         }
-    }
-    account.manager.saveToFile();
+    return account.manager.saveToFile();
 };
