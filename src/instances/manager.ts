@@ -1,4 +1,4 @@
-import { exists, readDir, createDir } from '@tauri-apps/api/fs';
+import { readDir, createDir } from '@tauri-apps/api/fs';
 
 import Instance from './instance';
 import { Voxura } from '../voxura';

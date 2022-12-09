@@ -41,9 +41,7 @@ interface AccountJson {
 };
 export default class Authentication extends EventEmitter {
     public accounts: Account[];
-    private data: AccountJson = {
-        data: []
-    };
+    private data: AccountJson = { data: [] };
     private voxura: Voxura;
     private currentAccount?: Account;
 

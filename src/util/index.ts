@@ -87,10 +87,7 @@ export function mapLibraries(libraries: any[], path: string): any[] {
     .reduce((acc, lib) => {
         const array: {}[] = [];
         if (lib.downloads && lib.downloads.artifact) {
-            let { url } = lib.downloads.artifact;
-            if (lib.downloads.artifact.url === '') {
-                url = `https://files.minecraftforge.net/${mavenAsString(lib.name)}`;
-            }
+            const url = lib.downloads.artifact.url || `https://files.minecraftforge.net/${mavenAsString(lib.name)}`;
             array.push({
                 url,
                 path: `${path}/${lib.downloads.artifact.path}`,
@@ -99,19 +96,14 @@ export function mapLibraries(libraries: any[], path: string): any[] {
             });
         }
 
-        const native = (
-            (lib?.natives &&
-                lib?.natives[convertPlatform(PLATFORM)]) ||
-            ''
-        ).replace('${arch}', '64');
-
+        const native = ((lib?.natives && lib?.natives[convertPlatform(PLATFORM)]) || '').replace('${arch}', '64');
         if (native && lib?.downloads?.classifiers[native])
             array.push({
                 url: lib.downloads.classifiers[native].url,
+				name: lib.name,
+				sha1: lib.downloads.classifiers[native].sha1,
                 path: `${path}/${lib.downloads.classifiers[native].path}`,
-                sha1: lib.downloads.classifiers[native].sha1,
-                natives: true,
-                name: lib.name
+                natives: true
             });
         if (array.length === 0)
             array.push({

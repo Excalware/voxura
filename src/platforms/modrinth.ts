@@ -4,10 +4,7 @@ import Mod from './mod';
 import Project from './project';
 import Platform from '.';
 export default class Modrinth extends Platform {
-    public constructor() {
-        super('modrinth');
-    }
-
+	public static id = 'modrinth';
     public search(query: string, options: {
         limit?: number,
         facets?: string[],

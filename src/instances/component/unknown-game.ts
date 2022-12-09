@@ -1,8 +1,6 @@
 import GameComponent from './game-component';
 export default class UnknownGame extends GameComponent {
-    public static readonly id = 'unknown';
+	public static readonly id = 'unknown';
 
-    async launch() {
-
-    }
+	async launch() {}
 };

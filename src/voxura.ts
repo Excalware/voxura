@@ -38,12 +38,8 @@ export class Voxura {
         this.platforms = {
             modrinth: new Modrinth()
         };
-        this.config = config ?? {
-            
-        };
-		this.store = {
-			projects: {}
-		};
+        this.config = config ?? {};
+		this.store = { projects: {} };
     }
 
 	public async init() {

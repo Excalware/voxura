@@ -157,8 +157,6 @@ export default class Account {
 
     private get requestHeaders() {
         const { token, tokenType } = this.data.minecraft;
-        return {
-            Authorization: `${tokenType} ${token}`
-        };
+        return { Authorization: `${tokenType} ${token}` };
     }
 };

@@ -19,16 +19,15 @@ export default class Downloader extends EventEmitter {
         super();
         this.path = voxura.rootPath + '/downloads';
 
-        listen<DownloadPayload>('download_update', ({ payload }) => {
-            this.updateDownloads(this.downloads, payload);
-        });
+        listen<DownloadPayload>('download_update', ({ payload }) =>
+            this.updateDownloads(this.downloads, payload)
+        );
     }
 
     private updateDownloads(downloads: Download[], payload: DownloadPayload): void {
         for (const download of downloads) {
             if (download.id === payload.id)
                 download.update(payload.progress, payload.total);
-
             this.updateDownloads(download.subDownloads, payload);
         }
     }

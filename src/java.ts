@@ -75,12 +75,10 @@ export default class JavaManager {
 
                 invokeTauri('extract_archive', { id: download.id, target: path, path: this.path });
 
-                await new Promise<void>(async resolve => {
-                    download.listenForEvent('finished', () => {
-                        download.unlistenForEvent('finished', resolve);
-                        resolve();
-                    });
-                });
+                await new Promise<void>(resolve => download.listenForEvent('finished', () => {
+					download.unlistenForEvent('finished', resolve);
+					resolve();
+				}));
                 download.update(prog, total);
             } else
                 await this.voxura.downloader.extractArchive(path, this.path);

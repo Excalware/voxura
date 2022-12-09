@@ -1,7 +1,7 @@
 import FabricLoader from './fabric-loader';
 import type Platform from '../../platforms';
 export default class QuiltLoader extends FabricLoader {
-    public static readonly id: string = 'quilt';
+	public static readonly id: string = 'quilt';
 
 	public getPlatformId(platform: Platform) {
 		if (platform.id === 'curseforge')
@@ -9,7 +9,7 @@ export default class QuiltLoader extends FabricLoader {
 		return this.id;
 	}
 
-    protected static get apiBase(): string {
-        return 'https://meta.quiltmc.org/v3';
-    }
+	protected static get apiBase(): string {
+		return 'https://meta.quiltmc.org/v3';
+	}
 };
