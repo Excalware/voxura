@@ -273,10 +273,10 @@ export default class Instance extends EventEmitter {
     }
 
     public async refresh(): Promise<void> {
-        let configChanged = false;
-        this.icon = await readBinaryFile(this.path + '/icon.png').catch(console.log);
-		this.banner = await readBinaryFile(this.path + '/banner.png').catch(console.log);
-        
+		await this.readIcon();
+		await this.readBanner();
+
+        let configChanged = false;        
         if (await fileExists(this.configPath) && !await fileExists(this.storePath)) {
             const storeData = await readJsonFile<any>(this.configPath).catch(console.log);
             this.store = new mdpkmInstanceConfig(this, storeData);
@@ -286,6 +286,7 @@ export default class Instance extends EventEmitter {
         }
         this.storeType = this.store.type;
 
+		this.emitEvent('changed');
         this.manager.emitEvent('listChanged');
 
         if (this.store.id)
@@ -296,6 +297,16 @@ export default class Instance extends EventEmitter {
             await this.saveConfig();
     }
 
+	public async readIcon() {
+		if (await exists(this.iconPath))
+			this.icon = await readBinaryFile(this.iconPath).catch(console.warn);
+	}
+
+	public async readBanner() {
+		if (await exists(this.bannerPath))
+			this.banner = await readBinaryFile(this.bannerPath).catch(console.warn);
+	}
+
 	public async setCategory(value: string) {
 		this.store.category = value;
 		await this.saveConfig();
@@ -304,7 +315,7 @@ export default class Instance extends EventEmitter {
 	}
 
 	public async killProcess(process: Child) {
-		await process.kill();
+		process.kill();
 		this.processes = this.processes.filter(p => p !== process);
 		this.state = this.processes.length ? InstanceState.GameRunning : InstanceState.None;
 
@@ -440,6 +451,14 @@ export default class Instance extends EventEmitter {
     public get modsPath() {
         return this.path + '/mods';
     }
+
+	public get iconPath() {
+		return this.path + '/icon.png';
+	}
+
+	public get bannerPath() {
+		return this.path + '/banner.png';
+	}
 
     public get storePath() {
         return this.path + '/store.json';

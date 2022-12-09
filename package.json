@@ -7,7 +7,7 @@
     "license": "MIT",
     "dependencies": {
         "@reduxjs/toolkit": "^1.8.5",
-        "@tauri-apps/api": "1.2.0",
+        "@tauri-apps/api": "^1.2.0",
         "buffer": "^6.0.3",
         "p-map-browser": "^1.2.0",
         "semver": "^7.3.7",
@@ -16,6 +16,6 @@
     },
     "devDependencies": {
         "@types/semver": "^7.3.12",
-        "@types/uuid": "^8.3.4"
+        "@types/uuid": "^9.0.0"
     }
 }

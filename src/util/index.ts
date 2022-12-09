@@ -25,7 +25,7 @@ export function getDefaultIcon(name: string) {
 const isWindows = PLATFORM === 'win32';
 const cmdProgram = isWindows ? 'powershell' : 'sh';
 const cmdArguments = ['-c'];
-export function createCommand(program: string, args: string[], cwd: string) {
+export function createCommand(program: string, args: string[], cwd?: string) {
 	if (isWindows) // command prompt has a character limit, so we have to use powershell instead
 		return new Command(cmdProgram, [`& '${program}' @('${args.join("','")}')`], { cwd });
 	return new Command(cmdProgram, [...cmdArguments, program, ...args], { cwd });
