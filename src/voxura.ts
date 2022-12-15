@@ -9,13 +9,15 @@ import Modrinth from './platforms/modrinth';
 import type Platform from './platforms';
 import type Instance from './instances/instance';
 export type VoxuraStore = {
-	projects: Record<string, {
-		id: string;
-		version: string;
-		platform: string;
-		cachedIcon: string;
-		cachedMetadata: any;
-	}>;
+	projects: Record<string, CachedProject>;
+};
+export type CachedProject = {
+	id: string;
+	version: string;
+	platform: string;
+	cached_icon?: number[];
+	cached_metadata?: string;
+	cached_metaname?: string;
 };
 export interface VoxuraConfig {
     
@@ -23,7 +25,6 @@ export interface VoxuraConfig {
 export class Voxura {
     public auth: Authentication;
     public java: JavaManager;
-	public store: VoxuraStore;
     public config: VoxuraConfig;
     public rootPath: string;
     public platforms: Record<string, Platform>;
@@ -39,19 +40,10 @@ export class Voxura {
             modrinth: new Modrinth()
         };
         this.config = config ?? {};
-		this.store = { projects: {} };
     }
 
 	public async init() {
 		await createDir(this.rootPath, { recursive: true });
-
-		const store = await readJsonFile<VoxuraStore>(this.storePath).catch(console.error);
-		if (store)
-			this.store = store;
-	}
-
-	public async saveStore() {
-		return writeJsonFile(this.storePath, this.store);
 	}
 
     public addPlatform(platform: Platform) {

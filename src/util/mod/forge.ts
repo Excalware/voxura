@@ -1,15 +1,13 @@
 import toml from 'toml';
-import { Buffer } from 'buffer';
 
 import Mod from './';
 export interface ForgeMetadata {
     
 };
 export default class ForgeMod extends Mod {
-    public icon?: Buffer;
     public loader: string = 'forge';
-    constructor(name: string, filePath: string, metadata: string) {
-        super(name, filePath);
+    constructor(name: string, filePath: string, md5: string, metadata: string) {
+        super(name, filePath, md5);
         try {
             this.metadata = toml.parse(metadata);
         } catch(err) { console.warn(err); }
@@ -25,14 +23,6 @@ export default class ForgeMod extends Mod {
 
     public get version() {
         return this.modData?.version;
-    }
-
-    public get webIcon() {
-        return this.icon ? `data:image/png;base64,${this.base64Icon}` : 'img/icons/unknown_mod.svg';
-    }
-
-    public get base64Icon() {
-        return this.icon?.toString('base64');
     }
 
     private get modData() {

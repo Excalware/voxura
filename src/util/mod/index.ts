@@ -1,12 +1,16 @@
+import type { Buffer } from 'buffer';
 export default abstract class Mod {
+	public md5: string;
     public path: string;
+	public icon?: Buffer;
     public fileName: string;
     public metadata?: any;
     public abstract loader: string;
 
-    constructor(name: string, filePath: string) {
+    constructor(name: string, filePath: string, md5: string) {
         this.fileName = name;
         this.path = filePath;
+		this.md5 = md5;
     }
 
     public get id() {
@@ -26,6 +30,10 @@ export default abstract class Mod {
     }
 
     public get webIcon() {
-        return 'img/icons/unknown_mod.svg';
+        return this.icon ? `data:image/png;base64,${this.base64Icon}` : 'img/icons/unknown_mod.svg';
+    }
+
+    public get base64Icon() {
+        return this.icon?.toString('base64');
     }
 };

@@ -4,15 +4,22 @@ use tauri::{
     Runtime
 };
 
+pub mod cmd;
 pub mod auth;
+pub mod storage;
 
 use std::fs;
+use std::fs::{ File };
 use std::io::Read;
 use std::path::Path;
+use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use flate2::read::GzDecoder;
+use serde_json::{ Map };
 
 #[derive(Clone, serde::Serialize)]
 pub struct Mod {
+	md5: String,
     name: String,
     path: String,
     icon: Option<Vec<u8>>,
@@ -20,55 +27,85 @@ pub struct Mod {
     meta_name: Option<String>
 }
 
-fn read_mod(path: &Path) -> Result<Mod, String> {
-    let file = std::fs::File::open(path);
-    if file.is_ok() {
-        let archiv = zip::ZipArchive::new(file.as_ref().unwrap());
-        if archiv.is_ok() {
-            let mut archive = archiv.unwrap();
-            let mut data = Mod {
-                name: path.file_name().unwrap().to_str().unwrap().to_string(),
-                path: path.to_str().unwrap().to_string(),
-                icon: None,
-                meta: None,
-                meta_name: None
-            };
+#[derive(Serialize, Deserialize)]
+pub struct CachedProject {
+	id: String,
+	version: String,
+	platform: String,
+	cached_icon: Option<Vec<u8>>,
+	cached_metaname: Option<String>,
+	cached_metadata: Option<String>
+}
 
-            for i in 0..archive.len() {
-                let mut file2 = archive.by_index(i).unwrap();
-                let name = file2.name().to_string();
-                if name == "fabric.mod.json" || name.contains("mods.toml") {
-                    let mut buf = String::new();
-                    file2.read_to_string(&mut buf).unwrap();
+fn real_read_mod<R: Runtime>(app_handle: tauri::AppHandle<R>, path: &Path) -> Result<Mod, String> {
+	let projects = storage::storage_get(app_handle, "projects".into(), serde_json::Value::Object(Map::new()));
+	match File::open(path) {
+		Ok(file) => {
+			match zip::ZipArchive::new(file) {
+				Ok(mut archive) => {
+					let mut data = Mod {
+						md5: get_md5_hash(path)?,
+						name: path.file_name().unwrap().to_str().unwrap().to_string(),
+						path: path.to_str().unwrap().to_string(),
+						icon: None,
+						meta: None,
+						meta_name: None
+					};
+					if let Ok(projects) = projects {
+						match projects.get(&data.md5) {
+							Some(x) => {
+								let x: CachedProject = serde_json::from_value(x.to_owned()).unwrap();
+								data.icon = x.cached_icon.clone();
+								data.meta = x.cached_metadata.clone();
+								data.meta_name = x.cached_metaname.clone();
+							},
+							_ => ()
+						}
+					}
 
-                    data.meta = Some(buf);
-                    data.meta_name = Some(name);
-                } else if name.contains("icon.png") || name.contains("logo.png") {
-                    let mut buf = Vec::new();
-                    file2.read_to_end(&mut buf).unwrap();
+					if data.meta.is_none() || data.icon.is_none() {
+						for i in 0..archive.len() {
+							let mut file2 = archive.by_index(i).unwrap();
+							let name = file2.name().to_string();
+							if data.meta.is_none() && (name == "fabric.mod.json" || name.contains("mods.toml")) {
+								let mut buf = String::new();
+								file2.read_to_string(&mut buf).unwrap();
 
-                    data.icon = Some(buf);
-                }
-            }
+								data.meta = Some(buf);
+								data.meta_name = Some(name);
+							} else if data.icon.is_none() && (name.contains("icon.png") || name.contains("logo.png")) {
+								let mut buf = Vec::new();
+								file2.read_to_end(&mut buf).unwrap();
 
-            return Ok(data);
-        }
-        return Err(archiv.unwrap_err().to_string());
+								data.icon = Some(buf);
+							}
+						}
+					}
+					Ok(data)
+				},
+				Err(x) => Err(x.to_string())
+			}
+		},
+		Err(x) => Err(x.to_string())
     }
-    return Err(file.unwrap_err().to_string());
 }
 
 #[tauri::command]
-fn read_mods(path: String) -> Vec<Mod> {
+fn read_mod<R: Runtime>(app_handle: tauri::AppHandle<R>, path: String) -> Result<Mod, String> {
+	real_read_mod(app_handle.clone(), Path::new(&path))
+}
+
+#[tauri::command]
+fn read_mods<R: Runtime>(app_handle: tauri::AppHandle<R>, path: String) -> Vec<Mod> {
     let mut mods = Vec::new();
-    for path in fs::read_dir(path).unwrap() {
-        let meta = read_mod(path.unwrap().path().as_path());
-        if meta.is_ok() {
-            mods.push(meta.unwrap());
-        }
+    for entry in fs::read_dir(path).unwrap() {
+		match real_read_mod(app_handle.clone(), entry.unwrap().path().as_path()) {
+			Ok(x) => mods.push(x),
+			Err(x) => println!("{}", x)
+		}
     }
 
-    return mods;
+    mods
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -202,8 +239,6 @@ fn extract_archive_contains<R: Runtime>(app_handle: tauri::AppHandle<R>, id: Str
     });
 }
 
-use std::collections::HashMap;
-
 #[tauri::command]
 fn files_exist(files: Vec<String>) -> HashMap<String, bool> {
     let mut results = HashMap::new();
@@ -219,15 +254,32 @@ fn request_microsoft_code() -> String {
 	return auth::get_url().unwrap();
 }
 
+fn get_md5_hash(path: &Path) -> Result<String, String> {
+	match fs::read(path) {
+		Ok(x) => Ok(format!("{:x}", md5::compute(x))),
+		Err(x) => Err(x.to_string())
+	}
+}
+
+#[tauri::command]
+fn get_file_md5(path: String) -> Result<String, String> {
+	get_md5_hash(&Path::new(&path))
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("voxura")
     .invoke_handler(tauri::generate_handler![
+		read_mod,
         read_mods,
         files_exist,
+		get_file_md5,
         download_file,
         extract_archive,
 		request_microsoft_code,
-        extract_archive_contains
+        extract_archive_contains,
+		
+		cmd::storage_set,
+		cmd::storage_get
     ])
     .build()
 }

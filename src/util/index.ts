@@ -49,7 +49,11 @@ export function fileExists(filePath: string, options?: FsOptions): Promise<boole
 
 export function filesExist(filePathes: string[]): Promise<Record<string, boolean>> {
     return invokeTauri('files_exist', { files: filePathes });
-}
+};
+
+export function getMD5Hash(filePath: string): Promise<string> {
+	return invokeTauri('get_file_md5', { path: filePath });
+};
 
 export function mavenAsArray(maven: string, nativeString?: string, forceExt?: string): string[] {
     const pathSplit = maven.split(':');
@@ -120,15 +124,15 @@ export function mapLibraries(libraries: any[], path: string): any[] {
     }, []);
 };
 
-export function getModByFile({ name, icon, path, meta, meta_name }: RustMod): Mod {
+export function getModByFile({ md5, name, icon, path, meta, meta_name }: RustMod): Mod {
     if (meta_name === 'fabric.mod.json') {
-        const mod = new FabricMod(name, path, meta);
+        const mod = new FabricMod(name, path, md5, meta);
         if (icon)
             mod.icon = Buffer.from(icon);
         
         return mod;
     } if (meta_name.includes('mods.toml')) {
-        const mod = new ForgeMod(name, path, meta);
+        const mod = new ForgeMod(name, path, md5, meta);
         if (icon)
             mod.icon = Buffer.from(icon);
         

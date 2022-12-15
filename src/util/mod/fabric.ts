@@ -1,5 +1,3 @@
-import { Buffer } from 'buffer';
-
 import Mod from './';
 export interface FabricMetadata {
     schemaVersion: number,
@@ -27,11 +25,10 @@ export interface FabricMetadata {
     custom?: Record<string, any>
 };
 export default class FabricMod extends Mod {
-    public icon?: Buffer;
     public loader: string = 'fabric';
     declare public readonly metadata?: FabricMetadata;
-    constructor(name: string, filePath: string, metadata: string) {
-        super(name, filePath);
+    constructor(name: string, filePath: string, md5: string, metadata: string) {
+        super(name, filePath, md5);
         try {
             this.metadata = JSON.parse(metadata);
         } catch(err) { console.warn(err); }
@@ -51,13 +48,5 @@ export default class FabricMod extends Mod {
 
     public get version() {
         return this.metadata?.version ?? super.version;
-    }
-
-    public get webIcon() {
-        return this.icon ? `data:image/png;base64,${this.base64Icon}` : 'img/icons/unknown_mod.svg';
-    }
-
-    public get base64Icon() {
-        return this.icon?.toString('base64');
     }
 };

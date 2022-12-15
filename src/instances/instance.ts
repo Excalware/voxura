@@ -11,17 +11,18 @@ import { Download } from '../downloader';
 import EventEmitter from '../util/eventemitter';
 import MinecraftJava from './component/minecraft-java';
 import GameComponent from './component/game-component';
-import type { Voxura } from '../voxura';
-import { getComponent } from '../voxura';
 import type PlatformMod from '../platforms/mod';
 import VersionedComponent from './component/versioned-component';
 import type InstanceManager from './manager';
 import UnknownGameComponent from './component/unknown-game';
+import { getStoredValue, setStoredValue } from '../storage';
+import { Voxura, getComponent, VoxuraStore } from '../voxura';
 import Component, { ComponentType, ComponentJson } from './component';
 import { InstanceState, InstanceStoreType, JavaVersionManifest } from '../types';
 import { fileExists, filesExist, invokeTauri, readJsonFile, getModByFile, writeJsonFile, getDefaultIcon } from '../util';
 
 export interface RustMod {
+	md5: string;
     name: string;
     path: string;
     icon?: number[];
@@ -332,9 +333,26 @@ export default class Instance extends EventEmitter {
         const url = file.url ?? file.downloadUrl;
         console.log('file:', file);
 
-        this.voxura.downloader.downloadFile(`${this.modsPath}/${name}`, url,
+		const path = `${this.modsPath}/${name}`;
+        await this.voxura.downloader.downloadFile(path, url,
             `${mod.displayName} (Game Modification)`, mod.webIcon
         );
+
+		const modData = await invokeTauri<RustMod>('read_mod', { path });
+		await getStoredValue<VoxuraStore["projects"]>('projects', {}).then(projects => {
+			projects[modData.md5] = {
+				id: mod.id,
+				version: version.id,
+				platform: mod.source.id,
+				cached_icon: modData.icon,
+				cached_metadata: modData.meta,
+				cached_metaname: modData.meta_name
+			};
+			return setStoredValue('projects', projects);
+		});
+
+		this.modifications.push(getModByFile(modData));
+		this.emitEvent('changed');
     }
 
     public async downloadLibraries(libraries: any[], download?: Download): Promise<void> {
