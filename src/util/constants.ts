@@ -11,7 +11,7 @@ export const MINECRAFT_SERVICES_API = 'https://api.minecraftservices.com';
 
 export const MINECRAFT_LIBRARIES_URL = 'https://libraries.minecraft.net';
 export const MINECRAFT_RESOURCES_URL = 'https://resources.download.minecraft.net';
-export const MINECRAFT_VERSION_MANIFEST = 'https://launchermeta.mojang.com/mc/game/version_manifest.json';
+export const MINECRAFT_VERSION_MANIFEST = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
 
 export const AZURE_CLIENT_ID = 'be7dfb6a-789c-4622-8c97-dcd963ae0f89';
 export const AZURE_LOGIN_SCOPE = "Xboxlive.signin,Xboxlive.offline_access";
