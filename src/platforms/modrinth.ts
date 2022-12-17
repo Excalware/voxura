@@ -5,7 +5,7 @@ import Project from './project';
 import Platform from '.';
 export default class Modrinth extends Platform {
 	public static id = 'modrinth';
-    public search(query: string, options: {
+	public search(query: string, options: {
         limit?: number,
         facets?: string[],
         offset?: number,
@@ -34,7 +34,7 @@ export default class Modrinth extends Platform {
         categories?: string[],
         projectType?: string
     } = {}): Promise<{
-        hits: ModrinthProject[],
+        hits: ModrinthMod[],
         limit: number,
         offset: number,
         total_hits: number

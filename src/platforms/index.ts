@@ -1,6 +1,10 @@
+import type Mod from './mod';
 import type Project from './project';
 export default abstract class Platform {
     public static id: string;
+
+	public abstract getMod(id: string): Promise<Mod>
+	public abstract getProject(id: string): Promise<Project>
 
     public abstract search(query: string, options: {
         limit?: number,
@@ -25,7 +29,7 @@ export default abstract class Platform {
         categories?: string[],
         projectType?: string
     }): Promise<{
-        hits: Project[],
+        hits: Mod[],
         limit: number,
         offset: number,
         total_hits: number
