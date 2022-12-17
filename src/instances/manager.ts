@@ -14,6 +14,7 @@ const DEFAULT_STORE: InstanceManagerStore = {
 export default class InstanceManager extends EventEmitter {
     public store: InstanceManagerStore = DEFAULT_STORE;
     public voxura: Voxura;
+	public loading: boolean = false;
     public instances: Array<Instance> = new Array<Instance>();
     private path: string;
 
@@ -45,6 +46,10 @@ export default class InstanceManager extends EventEmitter {
     }
 
     public async loadInstances(): Promise<void> {
+		if (this.loading)
+			throw new Error('already loading woo');
+		this.loading = true;
+
         const entries = await readDir(this.path);
         for (const entry of entries)
             if (entry.name && entry.children)
@@ -54,6 +59,8 @@ export default class InstanceManager extends EventEmitter {
 
                     this.instances.push(instance);
                 }
+		
+		this.loading = false;
         this.emitEvent('listChanged');
     }
 
