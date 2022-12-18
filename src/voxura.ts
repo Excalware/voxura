@@ -68,12 +68,16 @@ export class Voxura {
         return this.instances.getAll();
     }
 
-    public get tempPath(): string {
+    public get tempPath() {
         return this.rootPath + '/temp';
     }
 
-	public get storePath(): string {
+	public get storePath() {
 		return this.rootPath + '/voxura.json';
+	}
+
+	public get linkedPath() {
+		return this.rootPath + '/linked';
 	}
 };
 export * as Util from './util';

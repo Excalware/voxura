@@ -19,7 +19,7 @@ import { getStoredValue, setStoredValue } from '../storage';
 import { Voxura, getComponent, VoxuraStore } from '../voxura';
 import Component, { ComponentType, ComponentJson } from './component';
 import { InstanceState, InstanceStoreType, JavaVersionManifest } from '../types';
-import { fileExists, filesExist, invokeTauri, readJsonFile, getModByFile, writeJsonFile, getDefaultIcon } from '../util';
+import { fileExists, filesExist, invokeTauri, readJsonFile, getModByFile, writeJsonFile, createSymlink, getDefaultIcon } from '../util';
 
 export interface RustMod {
 	md5: string;
@@ -323,7 +323,7 @@ export default class Instance extends EventEmitter {
 		this.emitEvent('changed');
 	}
 
-    public async installMod(mod: PlatformMod): Promise<void> {
+    public async installMod(mod: PlatformMod, link: boolean = true): Promise<void> {
         console.log(mod);
         const version = await mod.getLatestVersion(this);
         console.log('latest version:', version);
@@ -333,10 +333,13 @@ export default class Instance extends EventEmitter {
         const url = file.url ?? file.downloadUrl;
         console.log('file:', file);
 
-		const path = `${this.modsPath}/${name}`;
+		const path = `${link ? this.voxura.linkedPath : this.modsPath}/${name}`;
         await this.voxura.downloader.downloadFile(path, url,
             `${mod.displayName} (Game Modification)`, mod.webIcon
         );
+		
+		if (link)
+			await createSymlink(path, `${this.modsPath}/${name}`);
 
 		const modData = await invokeTauri<RustMod>('read_mod', { path });
 		await getStoredValue<VoxuraStore["projects"]>('projects', {}).then(projects => {
@@ -351,7 +354,10 @@ export default class Instance extends EventEmitter {
 			return setStoredValue('projects', projects);
 		});
 
-		this.modifications.push(getModByFile(modData));
+		const mod2 = getModByFile(modData);
+		mod2.source = mod.source;
+
+		this.modifications.push(mod2);
 		this.emitEvent('changed');
     }
 
@@ -439,6 +445,10 @@ export default class Instance extends EventEmitter {
             this.modifications = await invokeTauri<RustMod[]>('read_mods', {
                 path: this.modsPath
             }).then(m => m.map(getModByFile));
+
+		const projects = await getStoredValue<VoxuraStore["projects"]>('projects', {});
+		for (const mod of this.modifications)
+			mod.source = this.voxura.getPlatform(projects[mod.md5]?.platform);
 
         this.readingMods = false;
         this.hasReadMods = true;

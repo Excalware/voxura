@@ -39,7 +39,7 @@ pub struct CachedProject {
 
 fn real_read_mod<R: Runtime>(app_handle: tauri::AppHandle<R>, path: &Path) -> Result<Mod, String> {
 	let projects = storage::storage_get(app_handle, "projects".into(), serde_json::Value::Object(Map::new()));
-	match File::open(path) {
+	match File::open(path.canonicalize().map_err(|x| x.to_string())?) {
 		Ok(file) => {
 			match zip::ZipArchive::new(file) {
 				Ok(mut archive) => {
@@ -279,7 +279,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         extract_archive_contains,
 		
 		cmd::storage_set,
-		cmd::storage_get
+		cmd::storage_get,
+		cmd::create_sym_link
     ])
     .build()
 }

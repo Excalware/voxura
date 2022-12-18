@@ -1,8 +1,10 @@
+import type Platform from '../../platforms';
 import type { Buffer } from 'buffer';
 export default abstract class Mod {
 	public md5: string;
     public path: string;
 	public icon?: Buffer;
+	public source?: Platform;
     public fileName: string;
     public metadata?: any;
     public abstract loader: string;
