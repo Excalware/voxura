@@ -1,8 +1,8 @@
 import { fetch } from '@tauri-apps/api/http';
 import { readDir, createDir } from '@tauri-apps/api/fs';
 
+import { Download } from './downloader';
 import type { Voxura } from './voxura';
-import { DownloadType } from './downloader';
 import { ARCH, PLATFORM } from './util/constants';
 import { fileExists, invokeTauri } from './util';
 
@@ -65,23 +65,12 @@ export default class JavaManager {
         if (latest) {
             const binary = latest.binary.package;
             const path = `${this.voxura.tempPath}/${binary.name}`;
-            if (!await fileExists(path)) {
-                const download = await this.voxura.downloader.downloadFile(path, binary.link,
-                    `Eclipse Temurin Java Development Kit ${latest.version.openjdk_version}`, 'img/icons/temurin.png'
-                );
-                const total = download.total, prog = download.progress;
-                download.type = DownloadType.Extract;
-                download.update(0, 2);
 
-                invokeTauri('extract_archive', { id: download.id, target: path, path: this.path });
+			const download = new Download('temurin', [latest.version.openjdk_version], this.voxura.downloader);
+            if (!await fileExists(path))
+				await download.download(binary.link, path);
+			await download.extract(this.path, path);
 
-                await new Promise<void>(resolve => download.listenForEvent('finished', () => {
-					download.unlistenForEvent('finished', resolve);
-					resolve();
-				}));
-                download.update(prog, total);
-            } else
-                await this.voxura.downloader.extractArchive(path, this.path);
             return `${this.path}/${latest.release_name}/bin/${JAVA_BINARY}`;
         }
         throw new Error(`No compatible versions were found`);

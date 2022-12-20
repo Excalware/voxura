@@ -5,6 +5,7 @@ import { ComponentType } from '.';
 import MinecraftExtension from './minecraft-extension';
 import { fileExists, readJsonFile } from '../../util';
 import type { MinecraftJavaManifest } from './minecraft-java';
+import { Download } from '../../downloader';
 
 export type FabricVersionsResponse = {
 	game: {}[],
@@ -38,9 +39,8 @@ export default class FabricLoader extends MinecraftExtension {
 		if (await fileExists(manifestPath))
 			return readJsonFile<MinecraftJavaManifest>(manifestPath);
 
-		await this.instance.manager.voxura.downloader.downloadFile(manifestPath, `${this.apiBase}/versions/loader/${encodeURIComponent(component.version)}/${encodeURIComponent(this.version)}/profile/json`,
-			`${this.id} ${this.version} Manifest`, 'img/icons/minecraft/java.png'
-		);
+		const download = new Download('component_manifest', [this.id, this.version], this.instance.manager.voxura.downloader);
+		await download.download(`${this.apiBase}/versions/loader/${encodeURIComponent(component.version)}/${encodeURIComponent(this.version)}/profile/json`, manifestPath);
 
 		return readJsonFile<MinecraftJavaManifest>(manifestPath);
 	}

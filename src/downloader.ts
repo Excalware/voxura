@@ -26,67 +26,43 @@ export default class Downloader extends EventEmitter {
 
     private updateDownloads(downloads: Download[], payload: DownloadPayload): void {
         for (const download of downloads) {
-            if (download.id === payload.id)
+            if (download.uuid === payload.id)
                 download.update(payload.progress, payload.total);
             this.updateDownloads(download.subDownloads, payload);
         }
     }
-
-    public downloadFile(path: string, url: string, displayName?: string, displayIcon?: string): Promise<Download> {
-        const download = new Download(this, path);
-        download.displayName = displayName ?? 'Unknown download';
-        if (displayIcon)
-            download.displayIcon = displayIcon;
-
-        this.downloads.push(download);
-        this.emitEvent('changed');
-        this.emitEvent('downloadStarted', download);
-
-        invokeTauri('download_file', { id: download.id, url, path });
-
-        return download.waitForFinish().then(() => download);
-    }
-
-    public extractArchive(target: string, path: string): Promise<void> {
-        const download = new Download(this, target);
-        download.type = DownloadType.Extract;
-        download.displayName = 'Archive Extract';
-
-        this.downloads.push(download);
-        this.emitEvent('changed');
-        this.emitEvent('downloadStarted', download);
-
-        invokeTauri('extract_archive', { id: download.id, target, path });
-
-        return download.waitForFinish();
-    }
 };
 
-export enum DownloadType {
-    Download,
-    Extract
+export enum DownloadState {
+	Pending,
+	Finished,
+	Extracting,
+	Downloading
 };
 export class Download extends EventEmitter {
-    public id: string;
-    public path: string;
-    public type: DownloadType = DownloadType.Download;
-    public total: number = NaN;
+	public id: string;
+	public uuid: string;
+    public total: number = 1;
+	public state: DownloadState = DownloadState.Pending;
     public parent?: Download;
-    public visible: boolean = true;
-    public progress: number = NaN;
-    public displayName?: string;
-    public displayIcon?: string;
+    public progress: number = 0;
+	public extraData: any;
     public subDownloads: Download[] = [];
     private downloader: Downloader;
     
-    constructor(downloader: Downloader, path: string) {
+    constructor(id: string, extraData: any, downloader: Downloader, push: boolean = true) {
         super();
-        this.id = uuidv4();
-        this.path = path;
+		this.id = id;
+        this.uuid = uuidv4();
+		this.extraData = extraData;
         this.downloader = downloader;
+
+		if (push)
+			downloader.downloads.push(this);
+		this.downloader.emitEvent('changed');
     }
 
-    update(progress?: number, total?: number) {
+    public update(progress?: number, total?: number) {
         if (total)
             this.total = total;
         if (progress)
@@ -103,16 +79,36 @@ export class Download extends EventEmitter {
             this.parent.update();
     }
 
-    addDownload(download: Download) {
+    public addDownload(download: Download) {
         download.parent = this;
-        download.visible = false;
         this.subDownloads.push(download);
 
         this.emitEvent('changed');
         this.downloader.emitEvent('changed');
     }
 
-    waitForFinish(): Promise<void> {
+	public download(url: string, path: string) {
+		this.setState(DownloadState.Downloading);
+		this.downloader.emitEvent('downloadStarted');
+		invokeTauri('download_file', { id: this.uuid, url, path });
+
+		return this.waitForFinish().then(() => this.setState(DownloadState.Finished));
+	}
+
+	public extract(path: string, target: string) {
+		this.setState(DownloadState.Extracting);
+		this.downloader.emitEvent('downloadStarted');
+		invokeTauri('extract_archive', { id: this.uuid, path, target });
+
+		return this.waitForFinish().then(() => this.setState(DownloadState.Finished));
+	}
+
+	public setState(state: DownloadState) {
+		this.state = state;
+		this.emitEvent('changed');
+	}
+
+    public waitForFinish(): Promise<void> {
         return new Promise(resolve => {
             const callback = () => {
                 this.unlistenForEvent('finished', callback);
@@ -122,26 +118,12 @@ export class Download extends EventEmitter {
         });
     }
 
-    get name(): string {
-        return this.displayName ?? this.path;
+    public get isDone(): boolean {
+		const [prog, total] = this.totalProgress;
+        return this.state === DownloadState.Finished || prog >= total;
     }
 
-    get icon(): string {
-        return this.displayIcon ?? 'img/icons/unknown_mod.svg';
-    }
-
-    get isDone(): boolean {
-        const total = this.totalProgress;
-        return total[0] >= total[1];
-    }
-
-    get state(): DownloadState {
-        if (this.isDone)
-            return DownloadState.Completed;
-        return DownloadState.Downloading;
-    }
-
-    get totalProgress() {
+    public get totalProgress(): [number, number] {
         let total = this.total, prog = this.progress;
         for (const download of this.subDownloads)
             total += download.total, prog += download.progress;
@@ -149,15 +131,11 @@ export class Download extends EventEmitter {
         return [prog, total];
     }
 
-    get percentage(): number {
+    public get percentage(): number {
         let total = this.progress / this.total * 100;
         for (const download of this.subDownloads)
             total += download.percentage;
 
         return total / (this.subDownloads.length + 1);
     }
-};
-export enum DownloadState {
-    Downloading,
-    Completed
 };

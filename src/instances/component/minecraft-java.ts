@@ -4,7 +4,7 @@ import { fetch } from '@tauri-apps/api/http';
 import GameComponent from './game-component';
 import { InstanceState } from '../../types';
 import MinecraftExtension from './minecraft-extension';
-import { Download, DownloadType } from '../../downloader';
+import { Download, DownloadState } from '../../downloader';
 import { PLATFORM, VOXURA_VERSION, MINECRAFT_RESOURCES_URL, MINECRAFT_VERSION_MANIFEST } from '../../util/constants';
 import { fileExists, filesExist, invokeTauri, readJsonFile, mapLibraries, createCommand, convertPlatform } from '../../util';
 
@@ -154,9 +154,8 @@ export default class MinecraftJava extends GameComponent {
 		if (!manifest)
 			throw new Error(`Could not find manifest for ${version}`);
 
-		await this.instance.manager.voxura.downloader.downloadFile(manifestPath, manifest.url,
-			`Minecraft: Java Edition ${version} Manifest`, 'img/icons/minecraft/java.png'
-		);
+		const download = new Download('minecraft_java_manifest', [version], this.instance.manager.voxura.downloader);
+		await download.download(manifest.url, manifestPath);
 
 		return readJsonFile<MinecraftJavaManifest>(manifestPath);
 	}
@@ -171,25 +170,9 @@ export default class MinecraftJava extends GameComponent {
 
 		const downloader = this.instance.manager.voxura.downloader;
 		const version = this.version;
-		const download = new Download(downloader, artifact.path);
-		download.total = 0;
-		download.progress = 0;
-		download.displayName = `Minecraft: Java Edition ${version}`;
-		download.displayIcon = 'img/icons/minecraft/java.png';
-
-		downloader.downloads.push(download);
-		downloader.emitEvent('changed');
-		downloader.emitEvent('downloadStarted', download);
-
-		if (!await fileExists(artifact.path)) {
-			invokeTauri('download_file', {
-				id: download.id,
-				url: artifact.url,
-				path: artifact.path
-			});
-
-			await download.waitForFinish();
-		}
+		const download = new Download('minecraft_java', [version], downloader);
+		if (!await fileExists(artifact.path))
+			await download.download(artifact.url, artifact.path);
 
 		const libraries = mapLibraries(manifest.libraries, this.instance.manager.librariesPath);
 		const assetIndex = await this.getAssetIndex(manifest);
@@ -219,29 +202,17 @@ export default class MinecraftJava extends GameComponent {
 		const downloader = this.instance.manager.voxura.downloader;
 
 		let download: Download;
-		if (Object.values(existing).some(e => !e)) {
-			download = new Download(downloader, '');
-			download.total = 0, download.progress = 0;
-			download.displayName = `${this.id} ${this.version} Assets`;
-
-			downloader.downloads.push(download);
-			downloader.emitEvent('changed');
-			downloader.emitEvent('downloadStarted', download);
-		}
+		if (Object.values(existing).some(e => !e))
+			download = new Download('minecraft_java_assets', [this.id, this.version], downloader);
 
 		await pmap(Object.entries(existing), async ([path, exists]: [path: string, exists: boolean]) => {
 			if (!exists) {
 				const asset = assets.find(l => l.path === path);
 				if (asset) {
-					const sub = new Download(downloader, path);
-					invokeTauri('download_file', {
-						id: sub.id,
-						url: asset.url,
-						path
-					});
+					const sub = new Download('', null, downloader);
+					download.addDownload(sub);
 
-					(download as any).addDownload(sub);
-					await sub.waitForFinish();
+					return sub.download(asset.url, path);
 				}
 			}
 		}, { concurrency: 25 });
@@ -250,14 +221,13 @@ export default class MinecraftJava extends GameComponent {
 	private extractNatives(download: Download, libraries: any[]): void {
 		for (const { path, natives } of libraries)
 			if (natives) {
-				const sub = new Download(this.instance.manager.voxura.downloader, path);
-				sub.type = DownloadType.Extract;
-				sub.update(0, 2);
+				const sub = new Download('', null, this.instance.manager.voxura.downloader);
+				sub.setState(DownloadState.Extracting);
 
 				invokeTauri('extract_archive_contains', {
 					id: sub.id,
 					path: this.instance.nativesPath,
-					target: sub.path,
+					target: path,
 					contains: '.dll'
 				});
 
@@ -274,7 +244,7 @@ export default class MinecraftJava extends GameComponent {
 		const assetIndex = await this.getAssetIndex(manifest);
 		await this.downloadAssets(assetIndex);
 
-		const libraries = await this.getLibraries(manifest, '../../libraries');
+		const libraries = await this.getLibraries(manifest, instanceManager.librariesPath);//'../../libraries');
 		await this.instance.downloadLibraries(libraries);
 
 		for (const component of this.instance.store.components)
@@ -421,9 +391,8 @@ export default class MinecraftJava extends GameComponent {
 
 	private async downloadAssetIndex(manifest: MinecraftJavaManifest) {
 		const indexPath = this.getAssetIndexPath(manifest);
-		await this.instance.manager.voxura.downloader.downloadFile(indexPath, manifest.assetIndex.url,
-			`Minecraft ${manifest.assets} Asset Index`, 'img/icons/minecraft/java.png'
-		);
+		const download = new Download('minecraft_java_asset_index', [manifest.assets], this.instance.manager.voxura.downloader);
+		return download.download(manifest.assetIndex.url, indexPath);
 	}
 
 	public getAssetIndexPath(manifest: MinecraftJavaManifest) {

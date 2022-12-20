@@ -7,7 +7,6 @@ import type { Child } from '@tauri-apps/api/shell';
 import { exists, removeDir, readBinaryFile } from '@tauri-apps/api/fs';
 
 import type Mod from '../util/mod';
-import { Download } from '../downloader';
 import EventEmitter from '../util/eventemitter';
 import MinecraftJava from './component/minecraft-java';
 import GameComponent from './component/game-component';
@@ -15,6 +14,7 @@ import type PlatformMod from '../platforms/mod';
 import VersionedComponent from './component/versioned-component';
 import type InstanceManager from './manager';
 import UnknownGameComponent from './component/unknown-game';
+import { Download, DownloadState } from '../downloader';
 import { getStoredValue, setStoredValue } from '../storage';
 import { Voxura, getComponent, VoxuraStore } from '../voxura';
 import Component, { ComponentType, ComponentJson } from './component';
@@ -334,9 +334,8 @@ export default class Instance extends EventEmitter {
         console.log('file:', file);
 
 		const path = `${link ? this.voxura.linkedPath : this.modsPath}/${name}`;
-        await this.voxura.downloader.downloadFile(path, url,
-            `${mod.displayName} (Game Modification)`, mod.webIcon
-        );
+		const download = new Download('game_mod', [mod.displayName], this.voxura.downloader);
+		await download.download(url, path);
 		
 		if (link)
 			await createSymlink(path, `${this.modsPath}/${name}`);
@@ -362,16 +361,12 @@ export default class Instance extends EventEmitter {
     }
 
     public async downloadLibraries(libraries: any[], download?: Download): Promise<void> {
-        const component = this.gameComponent;
+        const { id, version } = this.gameComponent;
+		const downloader = this.voxura.downloader;
         const existing = await filesExist(libraries.filter(l => l.path && l.url).map(l => l.path));
         if (!download && Object.values(existing).some(e => !e)) {
-            download = new Download(this.voxura.downloader, '');
-            download.total = 0, download.progress = 0;
-            download.displayName = `${component.id} ${component.version} Libraries`;
-
-            const downloader = this.voxura.downloader;
-            downloader.downloads.push(download);
-            downloader.emitEvent('changed');
+            download = new Download('component_libraries', [id, version], downloader);
+			download.setState(DownloadState.Downloading);
             downloader.emitEvent('downloadStarted', download);
         }
 
@@ -379,39 +374,15 @@ export default class Instance extends EventEmitter {
             if (!exists) {
                 const library = libraries.find(l => l.path === path);
                 if (library) {
-                    const sub = new Download(this.voxura.downloader, path);
-                    invokeTauri('download_file', {
-                        id: sub.id,
-                        url: library.url,
-                        path
-                    });
+                    const sub = new Download('component_library', null, downloader, false);
+					sub.download(library.url, path);
 
-                    (download as any).addDownload(sub);
-                    await sub.waitForFinish();
+                    download!.addDownload(sub);
+                    return sub.download(library.url, path);
                 }
             }
         }, { concurrency: 25 });
-    }
-
-    public async getManifest(): Promise<JavaVersionManifest> {
-        const component = this.gameComponent;
-
-        const manifestPath = this.manifestPath;
-        if (await exists(manifestPath) as any)
-            return readJsonFile<JavaVersionManifest>(manifestPath);
-
-        const { data } = await fetch<any>('https://launchermeta.mojang.com/mc/game/version_manifest.json');
-        
-        const version = component.version;
-        const manifest = data.versions.find((manifest: any) => manifest.id === version);
-        if (!manifest)
-            throw new Error(`Could not find manifest for ${version}`);
-
-        await this.voxura.downloader.downloadFile(manifestPath, manifest.url,
-            `Minecraft: Java Edition ${version} Manifest`, 'img/icons/minecraft/java.png'
-        );
-
-        return readJsonFile<JavaVersionManifest>(manifestPath);
+		download?.setState(DownloadState.Finished);
     }
 
     public async launch(): Promise<void> {
