@@ -1,6 +1,6 @@
 import { Body, fetch } from '@tauri-apps/api/http';
 
-import { XBOX_AUTH_BASE, XSTS_AUTH_BASE, MINECRAFT_SERVICES_API } from '../util/constants';
+import { XBOX_AUTH_BASE, XSTS_AUTH_BASE, MDPKM_SITE_BASE, MINECRAFT_SERVICES_API } from '../util/constants';
 
 import type Account from './account';
 import type { AccountData } from './';
@@ -49,7 +49,7 @@ export async function getXSTSToken(token: string, party?: string) {
 }
 
 export async function getMicrosoftToken(code: string) {
-    const { data } = await fetch<any>('https://mdpkm.voxelified.com/api/v1/oauth/token', {
+    const { data } = await fetch<any>(`${MDPKM_SITE_BASE}/oauth/token`, {
         body: Body.json({ code }),
         method: 'POST',
     });
@@ -66,7 +66,7 @@ export async function getMicrosoftToken(code: string) {
     };
 };
 export async function refreshMicrosoftToken(refreshToken: string) {
-    const { data } = await fetch<any>('https://mdpkm.voxelified.com/api/v1/oauth/token', {
+    const { data } = await fetch<any>(`${MDPKM_SITE_BASE}/oauth/token`, {
         body: Body.json({ refreshToken }),
         method: 'POST'
     });

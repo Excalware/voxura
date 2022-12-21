@@ -1,3 +1,4 @@
+import { fetch } from '@tauri-apps/api/http';
 import { arch, platform } from '@tauri-apps/api/os';
 export const ARCH = await arch();
 export const PLATFORM = await platform();
@@ -28,3 +29,8 @@ export const DEFAULT_INSTANCE_ICONS = [
     instanceIconStart + '7.svg',
     instanceIconStart + '8.svg',
 ];
+
+const API_BASE = '/api/v1';
+const DEFAULT_URL = 'https://mdpkm.voxelified.com';
+const FALLBACK_URL = 'https://mdpkm-site-blookers.vercel.app';
+export const MDPKM_SITE_BASE = await fetch(DEFAULT_URL).then(() => DEFAULT_URL + API_BASE).catch(() => FALLBACK_URL + API_BASE);

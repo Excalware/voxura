@@ -35,6 +35,7 @@ export class Voxura {
         this.rootPath = path.replace(/\/+|\\+/g, '/').replace(/\/$/g, '');
         this.java = new JavaManager(this, path + '/java');
         this.auth = new Authentication(this);
+		this.instances = new InstanceManager(this, this.rootPath + '/instances');
         this.downloader = new Downloader(this);
         this.platforms = {
             modrinth: new Modrinth()
@@ -55,7 +56,6 @@ export class Voxura {
     }
 
     public async startInstances(): Promise<void> {
-        this.instances = new InstanceManager(this, this.rootPath + '/instances');
         await this.instances.init();
         await this.instances.loadInstances();
     }
