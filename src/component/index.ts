@@ -1,5 +1,5 @@
 import type Instance from '../instance';
-import type Platform from '../../platforms';
+import type Platform from '../platform';
 export enum ComponentType {
 	Game,
 	Loader

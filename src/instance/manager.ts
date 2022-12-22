@@ -1,6 +1,6 @@
 import { readDir, createDir } from '@tauri-apps/api/fs';
 
-import Instance from './instance';
+import Instance from '.';
 import { Voxura } from '../voxura';
 import EventEmitter from '../util/eventemitter';
 import { readJsonFile, writeJsonFile } from '../util';

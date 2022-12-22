@@ -1,8 +1,8 @@
 import { fetch } from '@tauri-apps/api/http';
 
 import Project from './project';
-import type Instance from '../instances/instance';
-import GameComponent from '../instances/component/game-component';
+import type Instance from '../instance';
+import GameComponent from '../component/game-component';
 
 export enum ModSide {
     Client,

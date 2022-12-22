@@ -2,11 +2,11 @@ import pmap from 'p-map-browser';
 import { fetch } from '@tauri-apps/api/http';
 
 import GameComponent from './game-component';
-import { InstanceState } from '../../types';
+import { InstanceState } from '../types';
 import MinecraftExtension from './minecraft-extension';
-import { Download, DownloadState } from '../../downloader';
-import { PLATFORM, VOXURA_VERSION, MINECRAFT_RESOURCES_URL, MINECRAFT_VERSION_MANIFEST } from '../../util/constants';
-import { fileExists, filesExist, invokeTauri, readJsonFile, mapLibraries, createCommand, convertPlatform } from '../../util';
+import { Download, DownloadState } from '../downloader';
+import { PLATFORM, VOXURA_VERSION, MINECRAFT_RESOURCES_URL, MINECRAFT_VERSION_MANIFEST } from '../util/constants';
+import { fileExists, filesExist, invokeTauri, readJsonFile, mapLibraries, createCommand, convertPlatform } from '../util';
 
 export type Rule = {
 	os?: OsRule,

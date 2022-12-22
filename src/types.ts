@@ -13,10 +13,6 @@ export enum InstanceState {
     Launching,
     GameRunning
 };
-export enum InstanceStoreType {
-    Default,
-    mdpkm
-};
 export enum LoaderSetupFieldType {
     Text,
     File,

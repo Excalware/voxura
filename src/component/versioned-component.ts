@@ -1,5 +1,5 @@
 import type Instance from '../instance';
-import type { ComponentVersions } from '../../types';
+import type { ComponentVersions } from '../types';
 import Component, { ComponentData, ComponentJson } from '.';
 export type VersionedComponentData = ComponentData & {
 	version: string;

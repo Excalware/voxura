@@ -7,231 +7,25 @@ import { exists, removeDir, readBinaryFile } from '@tauri-apps/api/fs';
 import type Mod from '../util/mod';
 import { Download } from '../downloader';
 import EventEmitter from '../util/eventemitter';
-import MinecraftJava from './component/minecraft-java';
-import GameComponent from './component/game-component';
-import type PlatformMod from '../platforms/mod';
-import VersionedComponent from './component/versioned-component';
+import type PlatformMod from '../platform/mod';
 import type InstanceManager from './manager';
-import UnknownGameComponent from './component/unknown-game';
+import { InstanceState } from '../types';
+import { ComponentType } from '../component';
 import { getStoredValue, setStoredValue } from '../storage';
-import { InstanceState, InstanceStoreType } from '../types';
-import { Voxura, getComponent, VoxuraStore } from '../voxura';
-import Component, { ComponentType, ComponentJson } from './component';
+import { Voxura, VoxuraStore } from '../voxura';
+import mdpkmInstanceConfig from './store/mdpkm';
+import DefaultInstanceStore from './store/default';
+import InstanceStore, { InstanceStoreType } from './store';
 import { fileExists, invokeTauri, readJsonFile, getModByFile, writeJsonFile, createSymlink } from '../util';
 
 export interface RustMod {
-	md5: string;
-    name: string;
-    path: string;
-    icon?: number[];
-    meta: string;
-    meta_name: string;
-};
-export abstract class InstanceStore {
-    public instance: Instance;
-    public components: Component[] = [];
-    public abstract type: InstanceStoreType;
-    public readonly data: InstanceStoreData = {
-        storeType: InstanceStoreType.Default
-    };
-    constructor(instance: Instance, data?: InstanceStoreData | void) {
-        this.instance = instance;
-        if (data)
-            this.data = data;
-    }
-
-    public save() {
-        return writeJsonFile(this.instance.storePath, this.data);
-    }
-
-    public get id() {
-        return this.data.id;
-    }
-
-	public abstract get category(): string;
-    public abstract set category(value: string);
-    public abstract get memoryAllocation(): number;
-    public abstract set memoryAllocation(value: number);
-    public abstract get gameResolution(): [number, number];
-    public abstract get dateCreated(): number;
-    public abstract get dateUpdated(): number;
-    public abstract get dateLaunched(): number | undefined;
-    public abstract set dateLaunched(value: number | undefined);
-
-    public get gameComponent() {
-        const component = this.components.find(c => c.type === ComponentType.Game);
-        if (!(component instanceof GameComponent))
-            return new UnknownGameComponent(this.instance, {
-                version: '0.0.0'
-            });
-        return component;
-    }
-};
-export type InstanceStoreData = {
-    id?: string;
-    storeType: InstanceStoreType;
-};
-export type DefaultInstanceStoreData = InstanceStoreData & {
-    dates: [number, number, number?];
-	category: string;
-    components: ComponentJson[];
-    gameResolution: [number, number];
-    memoryAllocation: number;
+	md5: string
+    name: string
+    path: string
+    meta: string
+	icon?: number[]
+    meta_name: string
 }
-export class DefaultInstanceStore extends InstanceStore {
-    public type = InstanceStoreType.Default;
-    public readonly data: DefaultInstanceStoreData = {
-        dates: [Date.now(), Date.now()],
-		category: t('mdpkm:instance_category.default'),
-        storeType: InstanceStoreType.Default,
-        components: [],
-        gameResolution: [800, 600],
-        memoryAllocation: 2
-    };
-    constructor(instance: Instance, data?: DefaultInstanceStoreData | void) {
-        super(instance, data);
-        if (data)
-            this.data = data;
-
-        for (const data of this.data.components) {
-            if (data.id) {
-                const component = getComponent(data.id) as any;
-                if (component)
-                    this.components.push(new component(instance, data));
-            }
-        }
-    }
-
-    public save() {
-        this.data.components = this.components.map(c => c.toJSON());
-        return super.save();
-    }
-
-	public get category() {
-        return this.data.category ?? t('mdpkm:instance_category.default');
-    }
-    public set category(value: string) {
-        this.data.category = value;
-    }
-
-    public get memoryAllocation() {
-        return this.data.memoryAllocation ?? 2;
-    }
-    public set memoryAllocation(value: number) {
-        this.data.memoryAllocation = value;
-    }
-
-    public get gameResolution() {
-        return this.data.gameResolution;
-    }
-
-    public get dateCreated() {
-        return this.dates[0] ?? Date.now();
-    }
-    public get dateUpdated() {
-        return this.dates[1] ?? Date.now();
-    }
-
-    public get dateLaunched() {
-        return this.dates[2];
-    }
-    public set dateLaunched(value: number | undefined) {
-        this.dates[2] = value;
-    }
-
-    private get dates() {
-        return this.data.dates;
-    }
-};
-export type mdpkmConfigData = InstanceStoreData & {
-    ram: number;
-    loader: {
-        game: string,
-        type: string,
-        version?: string
-    };
-	category: string;
-    resolution: [number, number];
-    dateCreated: number;
-    dateUpdated: number;
-    dateLaunched?: number;
-    modifications: string[][];
-};
-export class mdpkmInstanceConfig extends InstanceStore {
-    public type = InstanceStoreType.mdpkm;
-    public readonly data: mdpkmConfigData = {
-        ram: 2,
-        loader: {
-            game: '1.0.0',
-            type: 'minecraft-java-vanilla'
-        },
-		category: t('mdpkm:instance_category.default'),
-        storeType: InstanceStoreType.mdpkm,
-        resolution: [900, 500],
-        dateCreated: Date.now(),
-        dateUpdated: Date.now(),
-        modifications: []
-    };
-    constructor(instance: Instance, data?: mdpkmConfigData | void) {
-        super(instance, data);
-        if (data)
-            this.data = data;
-
-        this.components = [
-            new MinecraftJava(instance, {
-                version: this.data.loader.game
-            })
-        ];
-
-        if (this.data.loader.version) {
-            const loader = getComponent(this.data.loader.type);
-            if (loader?.type === ComponentType.Loader)
-                this.components.push(new loader(instance, {
-                    version: this.data.loader.version
-                }));
-        }
-    }
-
-    public save() {
-        this.data.loader.game = this.gameComponent.version;
-
-        const loader = this.components[1];
-        if (loader instanceof VersionedComponent)
-            this.data.loader.type = loader.id, this.data.loader.version = loader.version;
-        return super.save();
-    }
-
-	public get category() {
-        return this.data.category ?? t('mdpkm:instance_category.default');
-    }
-    public set category(value: string) {
-        this.data.category = value;
-    }
-    public get memoryAllocation() {
-        return this.data.ram ?? 2;
-    }
-    public set memoryAllocation(value: number) {
-        this.data.ram = value;
-    }
-
-    public get gameResolution() {
-        return this.data.resolution;
-    }
-
-    public get dateCreated() {
-        return this.data.dateCreated;
-    }
-    public get dateUpdated() {
-        return this.data.dateUpdated;
-    }
-
-    public get dateLaunched() {
-        return this.data.dateLaunched ?? 0;
-    }
-    public set dateLaunched(value: number) {
-        this.data.dateLaunched = value;
-    }
-};
 
 const STORE_CLASS = [
     DefaultInstanceStore,

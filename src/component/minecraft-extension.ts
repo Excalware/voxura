@@ -1,6 +1,6 @@
+import { mapLibraries } from '../util';
 import { ComponentType } from '.';
 import VersionedComponent from './versioned-component';
-import { mapLibraries } from '../../util';
 import type { MinecraftJavaManifest } from './minecraft-java';
 export default abstract class MinecraftExtension extends VersionedComponent {
 	public static type = ComponentType.Loader;

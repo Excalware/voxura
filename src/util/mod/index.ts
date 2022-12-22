@@ -1,4 +1,4 @@
-import type Platform from '../../platforms';
+import type Platform from '../../platform';
 import type { Buffer } from 'buffer';
 export default abstract class Mod {
 	public md5: string;

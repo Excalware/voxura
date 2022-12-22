@@ -1,13 +1,13 @@
 import { createDir } from '@tauri-apps/api/fs';
 
+import Modrinth from './platform/modrinth';
 import Downloader from './downloader';
 import JavaManager from './java';
+import type Instance from './instance';
+import type Platform from './platform';
 import Authentication from './auth';
-import InstanceManager from './instances/manager';
+import InstanceManager from './instance/manager';
 
-import Modrinth from './platforms/modrinth';
-import type Platform from './platforms';
-import type Instance from './instances/instance';
 export type VoxuraStore = {
 	projects: Record<string, CachedProject>;
 };
@@ -80,13 +80,11 @@ export class Voxura {
 		return this.rootPath + '/linked';
 	}
 };
-export * as Util from './util';
 
-import QuiltLoader from './instances/component/quilt-loader';
-import FabricLoader from './instances/component/fabric-loader';
-import MinecraftJava from './instances/component/minecraft-java';
-import PlaceholderComponent from './instances/component/placeholder';
-import { readJsonFile, writeJsonFile } from './util';
+import QuiltLoader from './component/minecraft-quilt';
+import FabricLoader from './component/minecraft-fabric';
+import MinecraftJava from './component/minecraft-java';
+import PlaceholderComponent from './component/placeholder';
 
 export const COMPONENT_MAP = [MinecraftJava, FabricLoader, QuiltLoader];
 export function getComponent(id: string) {

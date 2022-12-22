@@ -1,5 +1,5 @@
-import FabricLoader from './fabric-loader';
-import type Platform from '../../platforms';
+import FabricLoader from './minecraft-fabric';
+import type Platform from '../platform';
 export default class QuiltLoader extends FabricLoader {
 	public static readonly id: string = 'quilt';
 
