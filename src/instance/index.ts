@@ -1,20 +1,20 @@
 import { t } from 'i18next';
 import { Buffer } from 'buffer';
-import { v4 as uuidv4 } from 'uuid';
 import type { Child } from '@tauri-apps/api/shell';
+import { v4 as uuidv4 } from 'uuid';
 import { exists, removeDir, readBinaryFile } from '@tauri-apps/api/fs';
 
 import type Mod from '../util/mod';
 import { Download } from '../downloader';
 import EventEmitter from '../util/eventemitter';
 import type PlatformMod from '../platform/mod';
-import type InstanceManager from './manager';
 import { InstanceState } from '../types';
 import { ComponentType } from '../component';
-import { getStoredValue, setStoredValue } from '../storage';
-import { Voxura, VoxuraStore } from '../voxura';
 import mdpkmInstanceConfig from './store/mdpkm';
+import type InstanceManager from './manager';
 import DefaultInstanceStore from './store/default';
+import { Voxura, VoxuraStore } from '../voxura';
+import { getStoredValue, setStoredValue } from '../storage';
 import InstanceStore, { InstanceStoreType } from './store';
 import { fileExists, invokeTauri, readJsonFile, getModByFile, writeJsonFile, createSymlink } from '../util';
 
@@ -66,8 +66,7 @@ export default class Instance extends EventEmitter {
     }
 
     public async refresh(): Promise<void> {
-		await this.readIcon();
-		await this.readBanner();
+		await Promise.all([this.readIcon(), this.readBanner()]);
 
         let configChanged = false;        
         if (await fileExists(this.configPath) && !await fileExists(this.storePath)) {

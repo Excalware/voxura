@@ -4,7 +4,7 @@ import Instance from '.';
 import { Voxura } from '../voxura';
 import EventEmitter from '../util/eventemitter';
 import { readJsonFile, writeJsonFile } from '../util';
-interface InstanceManagerStore {
+export interface InstanceManagerStore {
     recent: string[]
 };
 
@@ -51,14 +51,16 @@ export default class InstanceManager extends EventEmitter {
 		this.loading = true;
 
         const entries = await readDir(this.path);
+		const promises = [];
         for (const entry of entries)
             if (entry.name && entry.children)
                 if (!this.instances.some(i => i.name == entry.name)) {
                     const instance = new Instance(this, entry.name, entry.path);
-                    await instance.init();
+                    promises.push(instance.init());
 
                     this.instances.push(instance);
                 }
+		await Promise.all(promises);
 		
 		this.loading = false;
         this.emitEvent('listChanged');
