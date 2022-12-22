@@ -142,8 +142,7 @@ export default class MinecraftJava extends GameComponent {
 
 	public async getManifest(): Promise<MinecraftJavaManifest> {
 		const component = this.instance.gameComponent;
-
-		const manifestPath = this.instance.manifestPath;
+		const { manifestPath } = this;
 		if (await fileExists(manifestPath))
 			return readJsonFile<MinecraftJavaManifest>(manifestPath);
 
@@ -165,7 +164,7 @@ export default class MinecraftJava extends GameComponent {
 		const artifact = {
 			url: manifest.downloads.client.url,
 			sha1: manifest.downloads.client.sha1,
-			path: this.instance.clientPath
+			path: this.clientPath
 		};
 
 		const downloader = this.instance.manager.voxura.downloader;
@@ -178,7 +177,7 @@ export default class MinecraftJava extends GameComponent {
 		const assetIndex = await this.getAssetIndex(manifest);
 		await this.downloadAssets(assetIndex);
 
-		await this.instance.downloadLibraries(libraries, download);
+		await this.downloadLibraries(libraries, download);
 
 		this.extractNatives(download, libraries);
 
@@ -226,7 +225,7 @@ export default class MinecraftJava extends GameComponent {
 
 				invokeTauri('extract_archive_contains', {
 					id: sub.id,
-					path: this.instance.nativesPath,
+					path: this.nativesPath,
 					target: path,
 					contains: '.dll'
 				});
@@ -238,14 +237,14 @@ export default class MinecraftJava extends GameComponent {
 	public async launch() {
 		const instanceManager = this.instance.manager;
 		const manifest = await this.getManifest();
-		if (!await fileExists(this.instance.clientPath))
+		if (!await fileExists(this.clientPath))
 			await this.installGame();
 
 		const assetIndex = await this.getAssetIndex(manifest);
 		await this.downloadAssets(assetIndex);
 
 		const libraries = await this.getLibraries(manifest, instanceManager.librariesPath);//'../../libraries');
-		await this.instance.downloadLibraries(libraries);
+		await this.downloadLibraries(libraries);
 
 		for (const component of this.instance.store.components)
 			if (component instanceof MinecraftExtension) {
@@ -255,7 +254,7 @@ export default class MinecraftJava extends GameComponent {
 			}
 
 		const javaPath = await instanceManager.voxura.java.getExecutable(manifest.javaVersion.majorVersion);
-		const jvmArgs = this.getJvmArguments(manifest, this.getClassPaths(libraries, this.instance.clientPath), []);
+		const jvmArgs = this.getJvmArguments(manifest, this.getClassPaths(libraries, this.clientPath), []);
 		const gameArgs = this.getGameArguments(manifest);
 
 		const command = createCommand(javaPath, [
@@ -295,6 +294,30 @@ export default class MinecraftJava extends GameComponent {
 		return libraries;
 	}
 
+	private async downloadLibraries(libraries: MinecraftJavaLibrary[], download?: Download): Promise<void> {
+        const { id, version } = this.instance.gameComponent;
+		const downloader = this.instance.manager.voxura.downloader;
+        const existing = await filesExist(libraries.filter(l => l.path && l.url).map(l => l.path));
+        if (!download && Object.values(existing).some(e => !e)) {
+            download = new Download('component_libraries', [id, version], downloader);
+			download.setState(DownloadState.Downloading);
+            downloader.emitEvent('downloadStarted', download);
+        }
+
+        await pmap(Object.entries(existing), async([path, exists]: [path: string, exists: boolean]) => {
+            if (!exists) {
+                const library = libraries.find(l => l.path === path);
+				const url = library?.url;
+                if (url) {
+                    const sub = new Download('component_library', null, downloader, false);
+                    download!.addDownload(sub);
+                    return sub.download(url, path);
+                }
+            }
+        }, { concurrency: 25 });
+		download?.setState(DownloadState.Finished);
+    }
+
 	private getClassPaths(libraries: MinecraftJavaLibrary[], clientPath: string) {
 		const paths = libraries.map(l => l.path.replace(/\/+|\\+/g, '/'));
 		paths.push(clientPath);
@@ -325,7 +348,7 @@ export default class MinecraftJava extends GameComponent {
 				this.parseJvmArgument(arg, manifest, classPaths)
 			);
 		else {
-			parsed.push(`-Djava.library.path=${this.instance.nativesPath}`);
+			parsed.push(`-Djava.library.path=${this.nativesPath}`);
 			parsed.push('-cp', classPaths);
 		}
 
@@ -399,6 +422,22 @@ export default class MinecraftJava extends GameComponent {
 	public getAssetIndexPath(manifest: MinecraftJavaManifest) {
 		return `${this.instance.manager.assetsPath}/indexes/${manifest.assets}.json`;
 	}
+
+	public get clientPath() {
+        return this.versionPath + '/client.jar';
+    }
+
+	public get manifestPath() {
+        return this.versionPath + '/manifest.json';
+    }
+
+	public get versionPath() {
+        return `${this.instance.manager.versionsPath}/${this.id}-${this.version}`;
+    }
+
+	public get nativesPath() {
+        return this.instance.path + '/natives';
+    }
 };
 
 function parseRule(rule: Rule) {

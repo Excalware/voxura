@@ -360,31 +360,6 @@ export default class Instance extends EventEmitter {
 		this.emitEvent('changed');
     }
 
-    public async downloadLibraries(libraries: any[], download?: Download): Promise<void> {
-        const { id, version } = this.gameComponent;
-		const downloader = this.voxura.downloader;
-        const existing = await filesExist(libraries.filter(l => l.path && l.url).map(l => l.path));
-        if (!download && Object.values(existing).some(e => !e)) {
-            download = new Download('component_libraries', [id, version], downloader);
-			download.setState(DownloadState.Downloading);
-            downloader.emitEvent('downloadStarted', download);
-        }
-
-        await pmap(Object.entries(existing), async([path, exists]: [path: string, exists: boolean]) => {
-            if (!exists) {
-                const library = libraries.find(l => l.path === path);
-                if (library) {
-                    const sub = new Download('component_library', null, downloader, false);
-					sub.download(library.url, path);
-
-                    download!.addDownload(sub);
-                    return sub.download(library.url, path);
-                }
-            }
-        }, { concurrency: 25 });
-		download?.setState(DownloadState.Finished);
-    }
-
     public async launch(): Promise<void> {
         if (this.state !== InstanceState.None)
             throw new Error('Instance state must be InstanceState.None');
@@ -466,24 +441,7 @@ export default class Instance extends EventEmitter {
     public get configPath() {
         return this.path + '/config.json';
     }
-
-    public get nativesPath() {
-        return this.path + '/natives';
-    }
-
-    public get clientPath() {
-        return this.versionPath + '/client.jar';
-    }
-
-    public get manifestPath() {
-        return this.versionPath + '/manifest.json';
-    }
-
-    public get versionPath() {
-        const component = this.gameComponent;
-        return `${this.manager.versionsPath}/${component.id}-${component.version}`;
-    }
-
+	
     public get isModded() {
         return this.store.components.some(c => c.type === ComponentType.Loader);
     }
