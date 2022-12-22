@@ -279,6 +279,7 @@ export default class MinecraftJava extends GameComponent {
 		});
 
 		const child = await command.spawn();
+		command.on('close', () => this.instance.killProcess(child));
 		console.log('child process id:', child.pid);
 
 		this.instance.processes.push(child);
