@@ -414,6 +414,7 @@ export default class Instance extends EventEmitter {
         await removeDir(this.path, { recursive: true });
         this.manager.instances = this.manager.instances.filter(i => i !== this);
         this.manager.emitEvent('listChanged');
+		this.emitEvent('changed');
     }
 
     public get gameComponent() {
