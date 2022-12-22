@@ -55,8 +55,8 @@ export abstract class InstanceStore {
     public abstract get gameResolution(): [number, number];
     public abstract get dateCreated(): number;
     public abstract get dateUpdated(): number;
-    public abstract get dateLaunched(): number;
-    public abstract set dateLaunched(value: number);
+    public abstract get dateLaunched(): number | undefined;
+    public abstract set dateLaunched(value: number | undefined);
 
     public get gameComponent() {
         const component = this.components.find(c => c.type === ComponentType.Game);
@@ -72,7 +72,7 @@ export type InstanceStoreData = {
     storeType: InstanceStoreType;
 };
 export type DefaultInstanceStoreData = InstanceStoreData & {
-    dates: number[];
+    dates: [number, number, number?];
 	category: string;
     components: ComponentJson[];
     gameResolution: [number, number];
@@ -133,9 +133,9 @@ export class DefaultInstanceStore extends InstanceStore {
     }
 
     public get dateLaunched() {
-        return this.dates[2] ?? 0;
+        return this.dates[2];
     }
-    public set dateLaunched(value: number) {
+    public set dateLaunched(value: number | undefined) {
         this.dates[2] = value;
     }
 
