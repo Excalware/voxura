@@ -9,18 +9,7 @@ import ForgeMod from './mod/forge';
 import FabricMod from './mod/fabric';
 import UnknownMod from './mod/unknown';
 import type { RustMod } from '../instances/instance';
-import { PLATFORM, DEFAULT_INSTANCE_ICONS, MINECRAFT_LIBRARIES_URL } from './constants';
-
-export function getDefaultIcon(name: string) {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++)
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    hash = Math.abs(hash);
-
-    if (hash % 69420 === 0)
-        return DEFAULT_INSTANCE_ICONS[7];
-    return DEFAULT_INSTANCE_ICONS[Math.floor(hash % 7)];
-};
+import { PLATFORM, MINECRAFT_LIBRARIES_URL } from './constants';
 
 const isWindows = PLATFORM === 'win32';
 const cmdProgram = isWindows ? 'powershell' : 'sh';

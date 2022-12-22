@@ -1,12 +1,11 @@
-import pmap from 'p-map-browser';
 import { t } from 'i18next';
-import { fetch } from '@tauri-apps/api/http';
 import { Buffer } from 'buffer';
 import { v4 as uuidv4 } from 'uuid';
 import type { Child } from '@tauri-apps/api/shell';
 import { exists, removeDir, readBinaryFile } from '@tauri-apps/api/fs';
 
 import type Mod from '../util/mod';
+import { Download } from '../downloader';
 import EventEmitter from '../util/eventemitter';
 import MinecraftJava from './component/minecraft-java';
 import GameComponent from './component/game-component';
@@ -14,12 +13,11 @@ import type PlatformMod from '../platforms/mod';
 import VersionedComponent from './component/versioned-component';
 import type InstanceManager from './manager';
 import UnknownGameComponent from './component/unknown-game';
-import { Download, DownloadState } from '../downloader';
 import { getStoredValue, setStoredValue } from '../storage';
+import { InstanceState, InstanceStoreType } from '../types';
 import { Voxura, getComponent, VoxuraStore } from '../voxura';
 import Component, { ComponentType, ComponentJson } from './component';
-import { InstanceState, InstanceStoreType, JavaVersionManifest } from '../types';
-import { fileExists, filesExist, invokeTauri, readJsonFile, getModByFile, writeJsonFile, createSymlink, getDefaultIcon } from '../util';
+import { fileExists, invokeTauri, readJsonFile, getModByFile, writeJsonFile, createSymlink } from '../util';
 
 export interface RustMod {
 	md5: string;
@@ -463,7 +461,7 @@ export default class Instance extends EventEmitter {
     }
 
     public get defaultIcon(): string {
-        return getDefaultIcon(this.name);
+        return '';
     }
 
     public get webIcon(): string {
