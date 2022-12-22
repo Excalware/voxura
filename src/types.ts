@@ -25,34 +25,22 @@ export type ComponentVersion = {
     dateCreated: Date
 };
 export type ComponentVersions = ComponentVersion[][];
-export interface JavaVersionManifest {
-    id: string,
-    type: string,
-    assets: string,
-    logging: any,
-    downloads: {
-        server: JavaVersionManifestDownload,
-        client: JavaVersionManifestDownload,
-        server_mappings: JavaVersionManifestDownload,
-        client_mappings: JavaVersionManifestDownload
-    },
-    arguments: {
-        jvm: string[],
-        game: string[]
-    },
-    libraries: any[],
-    assetIndex: {
-        url: string
-    },
-    javaVersion: {
-        component: string,
-        majorVersion: number
-    },
-    minecraftArguments: string,
-    mainClass: string
+
+export interface MinecraftProfile {
+	id: string
+	name: string
+	skins: MinecraftSkin[]
+	capes: MinecraftCape[]
 };
-interface JavaVersionManifestDownload {
-    url: string,
-    sha1: string,
-    size: number
+export interface MinecraftSkin {
+	id: string
+	url: string
+	state: 'ACTIVE' | 'INACTIVE'
+	variant: 'SLIM' | 'CLASSIC'
+};
+export interface MinecraftCape {
+	id: string
+	url: string
+	alias: string
+	state: 'ACTIVE' | 'INACTIVE'
 };

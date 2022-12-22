@@ -1,10 +1,10 @@
-import { Body, fetch } from '@tauri-apps/api/http';
+import { Body, fetch, ResponseType } from '@tauri-apps/api/http';
 
 import { refreshAccount } from './util';
 import { MINECRAFT_SERVICES_API } from '../util/constants';
 
-import type Authentication from './';
-import type { AccountData } from './';
+import { MinecraftProfile } from '../types';
+import Authentication, { AccountData } from './';
 export enum ProfileType {
     Xbox, Minecraft
 }
@@ -20,6 +20,10 @@ export interface Profile {
     skins: any[],
     capes: any[]
 };
+export type ProfileReturnType = {
+	[ProfileType.Xbox]: any
+	[ProfileType.Minecraft]: any
+};
 export default class Account {
     public uuid?: string;
     public readonly data: AccountData;
@@ -31,7 +35,7 @@ export default class Account {
         this.uuid = data.profile?.id;
     }
 
-    public async getProfile(type: ProfileType): Promise<any> {
+    public async getProfile<T extends ProfileType>(type: T): Promise<ProfileReturnType[T]> {
         if (type === ProfileType.Xbox) {
             const { xsts2 } = this.data;
             const { data: { profileUsers: [ profile ] } } = await fetch<any>(`https://profile.xboxlive.com/users/xuid(${xsts2.xuid})/settings`, {
@@ -49,13 +53,11 @@ export default class Account {
                 gamertag: profile.settings[0].value,
                 realName: profile.settings[2].value
             };
-        } else if (type === ProfileType.Minecraft) {
-            const { data: { id, name, skins = [], capes = [] } } = await fetch<any>(`${MINECRAFT_SERVICES_API}/minecraft/profile`, {
-                method: 'GET',
-                headers: this.requestHeaders
-            });
-            return { id, name, skins, capes };
         }
+		return fetch<MinecraftProfile>(`${MINECRAFT_SERVICES_API}/minecraft/profile`, {
+			method: 'GET',
+			headers: this.requestHeaders
+		}).then(r => r.data);
     }
 
     public getAvatarUrl(type: AvatarType, style: AvatarStyle = AvatarStyle.Default, size: number = 24): string | undefined {
@@ -68,21 +70,8 @@ export default class Account {
                 return `https://visage.surgeplay.com/bust/${size}/${this.uuid}`;
     }
 
-    public async requestProfile(): Promise<Profile> {
-        const { data: { id, name, skins = [], capes = [] } } = await fetch<any>(`${MINECRAFT_SERVICES_API}/minecraft/profile`, {
-            method: 'GET',
-            headers: this.requestHeaders
-        });
-        return {
-            name,
-            uuid: id,
-            skins,
-            capes
-        };
-    }
-
     public async changeSkin(data: Uint8Array, variant: 'classic' | 'slim') {
-        await fetch(`${MINECRAFT_SERVICES_API}/minecraft/profile/skins`, {
+        return fetch(`${MINECRAFT_SERVICES_API}/minecraft/profile/skins`, {
             body: Body.form({
                 file: {
                     file: data,
@@ -92,7 +81,10 @@ export default class Account {
                 variant
             }),
             method: 'POST',
-            headers: this.requestHeaders
+            headers: {
+				'Content-Type': 'multipart/form-data',
+				...this.requestHeaders
+			}
         });
     }
 
@@ -114,14 +106,15 @@ export default class Account {
         });
     }
 
-    public async changeCape(capeId: string) {
-        await fetch(`${MINECRAFT_SERVICES_API}/minecraft/profile/capes/active`, {
-            body: Body.json({
+    public async changeCape(capeId?: string) {
+        return fetch<MinecraftProfile>(`${MINECRAFT_SERVICES_API}/minecraft/profile/capes/active`, {
+            body: capeId ? Body.json({
                 capeId
-            }),
-            method: 'PUT',
-            headers: this.requestHeaders
-        });
+            }) : undefined,
+            method: capeId ? 'PUT' : 'DELETE',
+            headers: this.requestHeaders,
+			responseType: ResponseType.JSON
+        }).then(r => r.data);
     }
 
     public async hideCape() {

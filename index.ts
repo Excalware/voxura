@@ -1,7 +1,7 @@
 export * from './src/voxura';
 
 export { default as Mod } from './src/platform/mod';
-export { AvatarType, AvatarStyle, default as Account } from './src/auth/account';
+export { AvatarType, AvatarStyle, ProfileType, default as Account } from './src/auth/account';
 export { default as Project } from './src/platform/project';
 export { default as Platform } from './src/platform';
 
