@@ -1,11 +1,15 @@
 export * from './src/voxura';
 
-export { default as Mod } from './src/platform/mod';
+export { ModSide, default as Mod } from './src/platform/mod';
+export { default as Authentication } from './src/auth';
+export type { AccountData } from './src/auth';
 export { AvatarType, AvatarStyle, ProfileType, default as Account } from './src/auth/account';
 export { default as Project } from './src/platform/project';
 export { default as Platform } from './src/platform';
 
 export { default as Instance } from './src/instance';
+export { InstanceStoreType, default as InstanceStore } from './src/instance/store';
+export type { InstanceStoreData } from './src/instance/store';
 export { default as InstanceManager } from './src/instance/manager';
 
 export { default as GameComponent } from './src/component/game-component';
@@ -17,6 +21,11 @@ export { default as VersionedComponent } from './src/component/versioned-compone
 export { default as PlaceholderComponent } from './src/component/placeholder';
 export { ComponentType, default as Component } from './src/component';
 
+export * as Storage from './src/storage';
+export { default as JavaManager } from './src/java';
+export { Download, DownloadState, default as Downloader } from './src/downloader';
+
 export * from './src/types';
 export * as Util from './src/util';
+export * as Constants from './src/util/constants';
 export { version as VOXURA_VERSION } from './package.json';
