@@ -34,9 +34,6 @@ export default abstract class Platform {
         offset: number,
         total_hits: number
     }>
-    
-    public abstract get displayName(): string
-    public abstract get webIcon(): string
 
 	public get id() {
         return (<typeof Platform>this.constructor).id;
