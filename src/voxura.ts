@@ -2,7 +2,6 @@ import { createDir } from '@tauri-apps/api/fs';
 
 import Modrinth from './platform/modrinth';
 import Downloader from './downloader';
-import JavaManager from './java';
 import type Instance from './instance';
 import type Platform from './platform';
 import Authentication from './auth';
@@ -24,7 +23,6 @@ export interface VoxuraConfig {
 };
 export class Voxura {
     public auth: Authentication;
-    public java: JavaManager;
     public config: VoxuraConfig;
     public rootPath: string;
     public platforms: Record<string, Platform>;
@@ -33,7 +31,6 @@ export class Voxura {
 
     public constructor(path: string, config?: VoxuraConfig) {
         this.rootPath = path.replace(/\/+|\\+/g, '/').replace(/\/$/g, '');
-        this.java = new JavaManager(this, path + '/java');
         this.auth = new Authentication(this);
 		this.instances = new InstanceManager(this, this.rootPath + '/instances');
         this.downloader = new Downloader(this);
@@ -81,12 +78,13 @@ export class Voxura {
 	}
 };
 
+import JavaTemurin from './component/java-temurin';
 import QuiltLoader from './component/minecraft-quilt';
 import FabricLoader from './component/minecraft-fabric';
 import MinecraftJava from './component/minecraft-java';
 import PlaceholderComponent from './component/placeholder';
 
-export const COMPONENT_MAP = [MinecraftJava, FabricLoader, QuiltLoader];
+export const COMPONENT_MAP = [JavaTemurin, QuiltLoader, FabricLoader, MinecraftJava];
 export function getComponent(id: string) {
     return COMPONENT_MAP.find(c => c.id === id) ?? PlaceholderComponent;
 };

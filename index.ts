@@ -12,6 +12,8 @@ export { InstanceStoreType, default as InstanceStore } from './src/instance/stor
 export type { InstanceStoreData } from './src/instance/store';
 export { default as InstanceManager } from './src/instance/manager';
 
+export { default as JavaTemurin } from './src/component/java-temurin';
+export { default as JavaComponent } from './src/component/java-component';
 export { default as GameComponent } from './src/component/game-component';
 export { default as MinecraftJava } from './src/component/minecraft-java';
 export { default as MinecraftQuilt } from './src/component/minecraft-quilt';
@@ -22,7 +24,6 @@ export { default as PlaceholderComponent } from './src/component/placeholder';
 export { ComponentType, default as Component } from './src/component';
 
 export * as Storage from './src/storage';
-export { default as JavaManager } from './src/java';
 export { Download, DownloadState, default as Downloader } from './src/downloader';
 
 export * from './src/types';

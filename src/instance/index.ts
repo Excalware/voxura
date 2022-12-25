@@ -1,21 +1,24 @@
 import { t } from 'i18next';
 import { Buffer } from 'buffer';
-import type { Child } from '@tauri-apps/api/shell';
+import { satisfies } from 'semver';
+import type { Child  } from '@tauri-apps/api/shell';
 import { v4 as uuidv4 } from 'uuid';
 import { exists, removeDir, readBinaryFile } from '@tauri-apps/api/fs';
 
 import type Mod from '../util/mod';
 import { Download } from '../downloader';
 import EventEmitter from '../util/eventemitter';
+import MinecraftJava from '../component/minecraft-java';
 import type PlatformMod from '../platform/mod';
 import { InstanceState } from '../types';
-import { ComponentType } from '../component';
+import VersionedComponent from '../component/versioned-component';
 import mdpkmInstanceConfig from './store/mdpkm';
 import type InstanceManager from './manager';
 import DefaultInstanceStore from './store/default';
 import { Voxura, VoxuraStore } from '../voxura';
 import { getStoredValue, setStoredValue } from '../storage';
 import InstanceStore, { InstanceStoreType } from './store';
+import InstanceComponent, { ComponentType } from '../component';
 import { fileExists, invokeTauri, readJsonFile, getModByFile, writeJsonFile, createSymlink } from '../util';
 
 export interface RustMod {
@@ -41,11 +44,10 @@ export default class Instance extends EventEmitter {
 	public banner?: Uint8Array | void;
     public manager: InstanceManager;
 	public processes: Child[] = [];
-    public storeType: InstanceStoreType = InstanceStoreType.Default;
     public readingMods: boolean = false;
     public hasReadMods: boolean = false;
     public modifications: Mod[];
-    private voxura: Voxura
+    public voxura: Voxura
     
     public constructor(manager: InstanceManager, name: string, path: string) {
         super();
@@ -73,10 +75,21 @@ export default class Instance extends EventEmitter {
             const storeData = await readJsonFile<any>(this.configPath).catch(console.log);
             this.store = new mdpkmInstanceConfig(this, storeData);
         } else {
-            const storeData = await readJsonFile<any>(this.storePath).catch(console.log);
+            let storeData = await readJsonFile<any>(this.storePath).catch(console.log);
+			if (storeData?.storeType === InstanceStoreType.mdpkm) {
+				storeData = {
+					dates: [Date.now(), Date.now()],
+					storeType: InstanceStoreType.Default,
+					components: [{
+						id: MinecraftJava.id,
+						version: storeData.loader.game
+					}],
+					gameResolution: storeData.resolution
+				};
+				configChanged = true;
+			}
             this.store = typeof storeData?.storeType === 'number' ? new STORE_CLASS[storeData.storeType](this, storeData) : new DefaultInstanceStore(this);
         }
-        this.storeType = this.store.type;
 
 		this.emitEvent('changed');
         this.manager.emitEvent('listChanged');
@@ -112,6 +125,10 @@ export default class Instance extends EventEmitter {
 		this.state = this.processes.length ? InstanceState.GameRunning : InstanceState.None;
 
 		this.emitEvent('changed');
+	}
+
+	public getComponentByType<T extends InstanceComponent, P extends typeof InstanceComponent>(type: P): T | undefined {
+		return this.store.components.find(c => c instanceof type) as any;
 	}
 
     public async installMod(mod: PlatformMod, link: boolean = true): Promise<void> {
@@ -157,6 +174,21 @@ export default class Instance extends EventEmitter {
 
         console.log('[voxura.instances]: Launching', this);
         this.setState(InstanceState.Launching);
+
+		const { components } = this.store;
+		for (const component of components) {
+			const dependencies = await component.getDependencies();
+			for (const dep of dependencies) {
+				const found = components.find(c => dep.id.includes(c.id));
+				if (found && found instanceof VersionedComponent) {
+					if (!satisfies(found.version, dep.versionRange)) {
+						this.setState(InstanceState.None);
+						throw new DependencyError(`version range of ${dep.versionRange} not satisfied by ${found.id} ${found.version}`);
+					}
+				} else
+					throw new DependencyError();
+			}
+		}
 
         this.store.dateLaunched = Date.now();
         await this.saveConfig();
@@ -261,4 +293,12 @@ export default class Instance extends EventEmitter {
     public get webIcon(): string {
         return this.icon ? `data:image/png;base64,${this.base64Icon}` : this.defaultIcon;
     }
+
+	public get storeType() {
+		return this.store?.type ?? InstanceStoreType.Default;
+	}
 };
+
+export class DependencyError extends Error {
+
+}

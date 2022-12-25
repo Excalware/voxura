@@ -8,7 +8,7 @@ import Mod from './mod';
 import ForgeMod from './mod/forge';
 import FabricMod from './mod/fabric';
 import UnknownMod from './mod/unknown';
-import type { RustMod } from '../instances/instance';
+import type { RustMod } from '../instance';
 import { PLATFORM, MINECRAFT_LIBRARIES_URL } from './constants';
 
 const isWindows = PLATFORM === 'win32';

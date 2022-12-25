@@ -12,19 +12,23 @@ export default abstract class VersionedComponent extends Component {
 	public constructor(instance: Instance, data: VersionedComponentJson) {
 		super(instance, data);
 		this.version = data.version;
-	};
+	}
 
 	public static getVersions(): Promise<ComponentVersions> {
 		throw new Error(`${this.id} does not implement getVersions`)
-	};
+	}
 	public get getVersions() {
 		return (<typeof VersionedComponent>this.constructor).getVersions;
-	};
+	}
 
 	public toJSON(): VersionedComponentJson {
 		return {
 			version: this.version,
 			...super.toJSON()
 		};
-	};
+	}
+
+	public get path() {
+		return super.path + '-' + this.version;
+	}
 };

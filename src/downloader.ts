@@ -12,8 +12,8 @@ interface DownloadPayload {
 };
 
 export default class Downloader extends EventEmitter {
+	public path: string;
     public downloads: Download[] = [];
-    private path: string;
 
     public constructor(voxura: Voxura) {
         super();
@@ -89,7 +89,7 @@ export class Download extends EventEmitter {
 
 	public download(url: string, path: string) {
 		this.setState(DownloadState.Downloading);
-		this.downloader.emitEvent('downloadStarted');
+		this.downloader.emitEvent('downloadStarted', this);
 		invokeTauri('download_file', { id: this.uuid, url, path });
 
 		return this.waitForFinish().then(() => this.setState(DownloadState.Finished));
@@ -97,7 +97,7 @@ export class Download extends EventEmitter {
 
 	public extract(path: string, target: string) {
 		this.setState(DownloadState.Extracting);
-		this.downloader.emitEvent('downloadStarted');
+		this.downloader.emitEvent('downloadStarted', this);
 		invokeTauri('extract_archive', { id: this.uuid, path, target });
 
 		return this.waitForFinish().then(() => this.setState(DownloadState.Finished));

@@ -2,6 +2,7 @@ import pmap from 'p-map-browser';
 import { fetch } from '@tauri-apps/api/http';
 
 import GameComponent from './game-component';
+import JavaComponent from './java-component';
 import { InstanceState } from '../types';
 import MinecraftExtension from './minecraft-extension';
 import { Download, DownloadState } from '../downloader';
@@ -121,7 +122,13 @@ export type MinecraftJavaManifest = {
 };
 
 export default class MinecraftJava extends GameComponent {
-	public static readonly id = 'minecraft-java-vanilla';
+	public static readonly id = 'minecraft-java-vanilla'
+	public async getDependencies() {
+		return this.getManifest().then(manifest => [{
+			id: ['java-temurin'],
+			versionRange: `>=${manifest.javaVersion.majorVersion}`
+		}]);
+	}
 
 	public static async getVersions() {
 		return fetch<VersionManifestResponse>(MINECRAFT_VERSION_MANIFEST).then(({ data: { versions } }) => {
@@ -146,7 +153,7 @@ export default class MinecraftJava extends GameComponent {
 		if (await fileExists(manifestPath))
 			return readJsonFile<MinecraftJavaManifest>(manifestPath);
 
-		const { data } = await fetch<any>('https://launchermeta.mojang.com/mc/game/version_manifest.json');
+		const { data } = await fetch<any>(MANIFESTS_URL);
 
 		const version = component.version;
 		const manifest = data.versions.find((manifest: any) => manifest.id === version);
@@ -253,11 +260,14 @@ export default class MinecraftJava extends GameComponent {
 				break;
 			}
 
-		const javaPath = await instanceManager.voxura.java.getExecutable(manifest.javaVersion.majorVersion);
 		const jvmArgs = this.getJvmArguments(manifest, this.getClassPaths(libraries, this.clientPath), []);
 		const gameArgs = this.getGameArguments(manifest);
 
-		const command = createCommand(javaPath, [
+		const java = this.instance.getComponentByType<JavaComponent, typeof JavaComponent>(JavaComponent);
+		if (!java)
+			throw new Error('where is java');
+
+		const command = createCommand(await java.getBinaryPath(), [
 			...jvmArgs,
 			manifest.mainClass,
 			...gameArgs
@@ -424,15 +434,11 @@ export default class MinecraftJava extends GameComponent {
 	}
 
 	public get clientPath() {
-        return this.versionPath + '/client.jar';
+        return this.path + '/client.jar';
     }
 
 	public get manifestPath() {
-        return this.versionPath + '/manifest.json';
-    }
-
-	public get versionPath() {
-        return `${this.instance.manager.versionsPath}/${this.id}-${this.version}`;
+        return this.path + '/manifest.json';
     }
 
 	public get nativesPath() {
@@ -471,3 +477,5 @@ interface JavaAssetIndex {
 		}
 	}
 };
+
+export const MANIFESTS_URL = 'https://piston-meta.mojang.com/mc/game/version_manifest.json';

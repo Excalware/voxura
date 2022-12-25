@@ -21,8 +21,8 @@ export enum LoaderSetupFieldType {
 };
 export type ComponentVersion = {
     id: string,
-    category: number,
-    dateCreated: Date
+	category: number,
+    dateCreated?: Date
 };
 export type ComponentVersions = ComponentVersion[][];
 
