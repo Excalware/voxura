@@ -1,8 +1,10 @@
 import pmap from 'p-map-browser';
 import { fetch } from '@tauri-apps/api/http';
 
+import JavaAgent from './java-agent';
 import GameComponent from './game-component';
 import JavaComponent from './java-component';
+import { LaunchError } from '../instance';
 import { InstanceState } from '../types';
 import MinecraftExtension from './minecraft-extension';
 import { Download, DownloadState } from '../downloader';
@@ -153,12 +155,15 @@ export default class MinecraftJava extends GameComponent {
 		if (await fileExists(manifestPath))
 			return readJsonFile<MinecraftJavaManifest>(manifestPath);
 
-		const { data } = await fetch<any>(MANIFESTS_URL);
+		const { data } = await fetch<any>(MANIFESTS_URL).catch(err => {
+			console.error(err);
+			throw new LaunchError('manifest_download_failed', [this.id, this.version]);
+		});
 
 		const version = component.version;
 		const manifest = data.versions.find((manifest: any) => manifest.id === version);
 		if (!manifest)
-			throw new Error(`Could not find manifest for ${version}`);
+			throw new LaunchError('manifest_download_failed', [this.id, this.version]);
 
 		const download = new Download('minecraft_java_manifest', [version], this.instance.manager.voxura.downloader);
 		await download.download(manifest.url, manifestPath);
@@ -255,13 +260,12 @@ export default class MinecraftJava extends GameComponent {
 
 		for (const component of this.instance.store.components)
 			if (component instanceof MinecraftExtension) {
-				console.log(component);
 				manifest.mainClass = await component.getManifest().then(m => m.mainClass);
 				break;
 			}
 
-		const jvmArgs = this.getJvmArguments(manifest, this.getClassPaths(libraries, this.clientPath), []);
-		const gameArgs = this.getGameArguments(manifest);
+		const jvmArgs = await this.getJvmArguments(manifest, this.getClassPaths(libraries, this.clientPath), []);
+		const gameArgs = await this.getGameArguments(manifest);
 
 		const java = this.instance.getComponentByType<JavaComponent, typeof JavaComponent>(JavaComponent);
 		if (!java)
@@ -350,7 +354,7 @@ export default class MinecraftJava extends GameComponent {
 		}
 	}
 
-	private getJvmArguments(manifest: MinecraftJavaManifest, classPaths: string, customArgs: string[]) {
+	private async getJvmArguments(manifest: MinecraftJavaManifest, classPaths: string, customArgs: string[]) {
 		const args = manifest.arguments.jvm;
 		const parsed: string[] = [];
 		if (args)
@@ -361,6 +365,11 @@ export default class MinecraftJava extends GameComponent {
 			parsed.push(`-Djava.library.path=${this.nativesPath}`);
 			parsed.push('-cp', classPaths);
 		}
+		for (const component of this.instance.store.components)
+			if (component instanceof MinecraftExtension)
+				parsed.push(...await component.getJvmArguments());
+			else if (component instanceof JavaAgent)
+				parsed.push(`-javaagent:${await component.getFilePath()}`);
 
 		// TODO: implement a min-max range
 		const memory = this.instance.store.memoryAllocation * 1000;
@@ -381,11 +390,14 @@ export default class MinecraftJava extends GameComponent {
 			.replace('${classpath}', classPaths);
 	}
 
-	private getGameArguments(manifest: MinecraftJavaManifest) {
+	private async getGameArguments(manifest: MinecraftJavaManifest) {
 		const args = manifest.arguments.game;
 		const parsed: string[] = [];
 		if (args)
 			this.parseArguments(args, parsed, arg => this.parseGameArgument(arg, manifest));
+		for (const component of this.instance.store.components)
+			if (component instanceof MinecraftExtension)
+				parsed.unshift(...await component.getGameArguments());
 
 		return parsed;
 	}

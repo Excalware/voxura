@@ -7,11 +7,12 @@ export { AvatarType, AvatarStyle, ProfileType, default as Account } from './src/
 export { default as Project } from './src/platform/project';
 export { default as Platform } from './src/platform';
 
-export { default as Instance } from './src/instance';
+export { LaunchError, default as Instance } from './src/instance';
 export { InstanceStoreType, default as InstanceStore } from './src/instance/store';
 export type { InstanceStoreData } from './src/instance/store';
 export { default as InstanceManager } from './src/instance/manager';
 
+export { default as JavaAgent } from './src/component/java-agent';
 export { default as JavaTemurin } from './src/component/java-temurin';
 export { default as JavaComponent } from './src/component/java-component';
 export { default as GameComponent } from './src/component/game-component';

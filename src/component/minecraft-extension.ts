@@ -11,6 +11,14 @@ export default abstract class MinecraftExtension extends VersionedComponent {
 		return mapLibraries(manifest.libraries, this.instance.manager.librariesPath);
 	}
 
+	public getJvmArguments() {
+		return Promise.resolve([]);
+	}
+
+	public getGameArguments() {
+		return Promise.resolve([]);
+	}
+
 	public get manifestPath() {
 		return this.path + '/manifest.json';
 	}

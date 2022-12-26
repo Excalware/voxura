@@ -127,7 +127,7 @@ export default class Instance extends EventEmitter {
 		this.emitEvent('changed');
 	}
 
-	public getComponentByType<T extends InstanceComponent, P extends typeof InstanceComponent>(type: P): T | undefined {
+	public getComponentByType<T extends InstanceComponent<any>, P extends typeof InstanceComponent<any>>(type: P): T | undefined {
 		return this.store.components.find(c => c instanceof type) as any;
 	}
 
@@ -177,16 +177,19 @@ export default class Instance extends EventEmitter {
 
 		const { components } = this.store;
 		for (const component of components) {
-			const dependencies = await component.getDependencies();
+			const dependencies = await component.getDependencies().catch(err => {
+				this.setState(InstanceState.None);
+				throw err;
+			});
 			for (const dep of dependencies) {
 				const found = components.find(c => dep.id.includes(c.id));
 				if (found && found instanceof VersionedComponent) {
 					if (!satisfies(found.version, dep.versionRange)) {
 						this.setState(InstanceState.None);
-						throw new DependencyError(`version range of ${dep.versionRange} not satisfied by ${found.id} ${found.version}`);
+						throw new LaunchError('dependency_version_unsatisfied', [component.id, dep.id, dep.versionRange, found.version]);
 					}
 				} else
-					throw new DependencyError();
+					throw new LaunchError('missing_dependency', [component.id, dep.id, dep.versionRange]);
 			}
 		}
 
@@ -299,6 +302,11 @@ export default class Instance extends EventEmitter {
 	}
 };
 
-export class DependencyError extends Error {
-
+export class DependencyError extends Error {}
+export class LaunchError extends Error {
+	public readonly extraData?: any[]
+	public constructor(message: string, extraData?: any[]) {
+		super(message);
+		this.extraData = extraData;
+	}
 }

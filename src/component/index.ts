@@ -11,12 +11,14 @@ export type ComponentData = {
 export type ComponentJson = {
 	id?: string;
 };
-export default abstract class InstanceComponent {
+export default abstract class InstanceComponent<T extends ComponentJson> {
 	public static readonly id: string
 	public static type: ComponentType
 	public instance: Instance
-	constructor(instance: Instance, data: ComponentJson) {
+	protected data: T
+	constructor(instance: Instance, data: T) {
 		this.instance = instance;
+		this.data = data;
 	}
 
 	public toJSON(): ComponentJson {

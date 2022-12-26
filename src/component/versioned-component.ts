@@ -7,7 +7,7 @@ export type VersionedComponentData = ComponentData & {
 export type VersionedComponentJson = ComponentJson & {
 	version: string;
 };
-export default abstract class VersionedComponent extends Component {
+export default abstract class VersionedComponent extends Component<VersionedComponentJson> {
 	public version: string = '1.0.0'
 	public constructor(instance: Instance, data: VersionedComponentJson) {
 		super(instance, data);

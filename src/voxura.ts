@@ -79,13 +79,14 @@ export class Voxura {
 	}
 };
 
+import JavaAgent from './component/java-agent';
 import JavaTemurin from './component/java-temurin';
 import QuiltLoader from './component/minecraft-quilt';
 import FabricLoader from './component/minecraft-fabric';
 import MinecraftJava from './component/minecraft-java';
 import PlaceholderComponent from './component/placeholder';
 
-export const COMPONENT_MAP: typeof Component[] = [JavaTemurin, QuiltLoader, FabricLoader, MinecraftJava];
+export const COMPONENT_MAP: typeof Component<any>[] = [JavaAgent, JavaTemurin, QuiltLoader, FabricLoader, MinecraftJava];
 export function getComponent(id: string) {
     return COMPONENT_MAP.find(c => c.id === id) ?? PlaceholderComponent;
 };
