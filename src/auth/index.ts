@@ -88,6 +88,9 @@ export default class Authentication extends EventEmitter {
             this.accounts = this.data.data.map(d => new Account(this, d));
             if (this.data.selected)
                 this.currentAccount = this.accounts.find(a => a.uuid === this.data.selected);
+
+			this.emitEvent('accountsChanged');
+			this.emitEvent('selectedChanged');
         } catch(err) {
             console.warn(`Error while loading from file:`, err);
         }
