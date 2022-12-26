@@ -124,7 +124,7 @@ export type MinecraftJavaManifest = {
 };
 
 export default class MinecraftJava extends GameComponent {
-	public static readonly id = 'minecraft-java-vanilla'
+	public static readonly id: string = 'minecraft-java-vanilla'
 	public async getDependencies() {
 		return this.getManifest().then(manifest => [{
 			id: ['java-temurin'],

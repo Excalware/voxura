@@ -1,4 +1,4 @@
 import Component, { ComponentJson } from '.';
 export default class PlaceholderComponent extends Component<ComponentJson> {
-	public static readonly id = 'placeholder';
+	public static readonly id: string = 'placeholder';
 };

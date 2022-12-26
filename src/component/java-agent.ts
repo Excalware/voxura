@@ -5,7 +5,7 @@ export type JavaAgentJson = ComponentJson & {
 	url: string;
 };
 export default abstract class JavaAgent extends Component<JavaAgentJson> {
-	public static readonly id = 'java-agent';
+	public static readonly id: string = 'java-agent';
 	public async getFilePath() {
 		const { agentPath } = this;
 		if (!await exists(agentPath))

@@ -15,7 +15,7 @@ const systemArch = {
     x86_64: 'x64'
 }[ARCH as string] ?? ARCH;
 export default class JavaTemurin extends JavaComponent {
-	public static id = 'java-temurin'
+	public static id: string = 'java-temurin'
 	public static type = ComponentType.Library
 
 	public async getBinaryPath() {
