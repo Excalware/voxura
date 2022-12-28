@@ -67,57 +67,6 @@ export function mavenAsString(maven: string, nativeString?: string, forceExt?: s
     return mavenAsArray(maven, nativeString, forceExt).join('/');
 };
 
-export function convertPlatform(format: string): string {
-    switch (format) {
-        case 'win32':
-            return 'windows';
-        case 'darwin':
-            return 'mac';
-        case 'linux':
-            return 'linux';
-        default:
-            return format;
-    };
-};
-
-export function mapLibraries(libraries: any[], path: string): any[] {
-    return libraries
-    .reduce((acc, lib) => {
-        const array: {}[] = [];
-        if (lib.downloads && lib.downloads.artifact) {
-            const url = lib.downloads.artifact.url || `https://files.minecraftforge.net/${mavenAsString(lib.name)}`;
-            array.push({
-                url,
-                path: `${path}/${lib.downloads.artifact.path}`,
-                sha1: lib.downloads.artifact.sha1,
-                name: lib.name
-            });
-        }
-
-        const native = ((lib?.natives && lib?.natives[convertPlatform(PLATFORM)]) || '').replace('${arch}', '64');
-        if (native && lib?.downloads?.classifiers[native])
-            array.push({
-                url: lib.downloads.classifiers[native].url,
-				name: lib.name,
-				sha1: lib.downloads.classifiers[native].sha1,
-                path: `${path}/${lib.downloads.classifiers[native].path}`,
-                natives: true
-            });
-        if (array.length === 0)
-            array.push({
-                url: `${lib.url || `${MINECRAFT_LIBRARIES_URL}/`}${mavenAsString(
-                    lib.name,
-                    native && `-${native}`
-                )}`,
-                path: `${path}/${mavenAsString(lib.name, native)}`,
-                ...(native && { natives: true }),
-                name: lib.name
-            });
-
-        return acc.concat(array.filter(_ => _));
-    }, []);
-};
-
 export function getModByFile({ md5, name, icon, path, meta, meta_name }: RustMod): Mod {
     if (meta_name === 'fabric.mod.json') {
         const mod = new FabricMod(name, path, md5, meta);

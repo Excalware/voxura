@@ -1,5 +1,6 @@
 import pmap from 'p-map-browser';
 import { fetch } from '@tauri-apps/api/http';
+import { exists } from '@tauri-apps/api/fs';
 
 import JavaAgent from './java-agent';
 import GameComponent from './game-component';
@@ -9,7 +10,7 @@ import { InstanceState } from '../types';
 import MinecraftExtension from './minecraft-extension';
 import { Download, DownloadState } from '../downloader';
 import { ARCH, PLATFORM, VOXURA_VERSION, MINECRAFT_RESOURCES_URL, MINECRAFT_VERSION_MANIFEST } from '../util/constants';
-import { fileExists, filesExist, invokeTauri, readJsonFile, mapLibraries, createCommand, convertPlatform } from '../util';
+import { fileExists, filesExist, invokeTauri, readJsonFile, createCommand, mavenAsString } from '../util';
 
 export type Rule = {
 	os?: OsRule,
@@ -57,23 +58,22 @@ export type MinecraftJavaRule = {
 	};
 };
 export type MinecraftJavaArtifact = MinecraftJavaDownload & {
-	path: string;
+	path: string
 };
 export type MinecraftJavaLibrary = {
-	name: string;
-	path: string;
-	url?: string;
-	rules?: MinecraftJavaRule[];
-	natives: any;
+	name: string
+	rules?: MinecraftJavaRule[]
+	natives: Record<string, string>
 	downloads?: {
-		artifact: MinecraftJavaArtifact;
-	};
+		artifact: MinecraftJavaArtifact
+		classifiers?: Record<string, MinecraftJavaArtifact>
+	}
 };
 export type MinecraftJavaDownload = {
-	url: string;
-	size: number;
-	sha1: string;
-	natives: any;
+	url: string
+	size: number
+	sha1: string
+	natives: any
 };
 export type MinecraftJavaArgument = string | {
 	value: string | string[];
@@ -185,13 +185,13 @@ export default class MinecraftJava extends GameComponent {
 		if (!await fileExists(artifact.path))
 			await download.download(artifact.url, artifact.path);
 
-		const libraries = mapLibraries(manifest.libraries, this.instance.manager.librariesPath);
+		const { libraries } = manifest;
 		const assetIndex = await this.getAssetIndex(manifest);
 		await this.downloadAssets(assetIndex);
 
 		await this.downloadLibraries(libraries, download);
 
-		this.extractNatives(download, libraries);
+		await this.extractNatives(download, libraries);
 
 		if (libraries.some(l => l.natives))
 			await download.waitForFinish();
@@ -229,10 +229,27 @@ export default class MinecraftJava extends GameComponent {
 		}, { concurrency: 25 });
 	}
 
-	private extractNatives(download: Download, libraries: any[]): void {
-		for (const { path, natives } of libraries)
-			if (natives) {
-				const sub = new Download('', null, this.instance.manager.voxura.downloader);
+	private async extractNatives(download: Download, libraries: MinecraftJavaLibrary[]) {
+		for (const library of libraries) {
+			const { natives, downloads } = library;
+			if (natives && downloads) {
+				const sub = new Download('', null, this.instance.manager.voxura.downloader, false);
+
+				let artifact = downloads?.artifact;
+				const classifiers = downloads?.classifiers;
+				if (classifiers) {
+					const native = natives[convertPlatform(PLATFORM)];
+					if (native) {
+						const classifier = classifiers[native];
+						if (classifier)
+							artifact = classifier
+					}
+				}
+
+				const path = `${this.librariesPath}/${artifact.path}`;
+				if (!await exists(path))
+					await sub.download(artifact.url, path);
+
 				sub.setState(DownloadState.Extracting);
 
 				invokeTauri('extract_archive_contains', {
@@ -240,18 +257,14 @@ export default class MinecraftJava extends GameComponent {
 					path: this.nativesPath,
 					target: path,
 					contains: '.dll'
-				}).then(console.log);
+				});
 
 				download.addDownload(sub);
 			}
-	}
-
-	private async checkNatives(libraries: any[]) {
-
+		}
 	}
 
 	public async launch() {
-		const instanceManager = this.instance.manager;
 		const manifest = await this.getManifest();
 		if (!await fileExists(this.clientPath))
 			await this.installGame();
@@ -259,7 +272,7 @@ export default class MinecraftJava extends GameComponent {
 		const assetIndex = await this.getAssetIndex(manifest);
 		await this.downloadAssets(assetIndex);
 
-		const libraries = await this.getLibraries(manifest, instanceManager.librariesPath);//'../../libraries');
+		const libraries = await this.getLibraries(manifest);
 		await this.downloadLibraries(libraries);
 
 		for (const component of this.instance.store.components)
@@ -303,19 +316,40 @@ export default class MinecraftJava extends GameComponent {
 		this.instance.setState(InstanceState.GameRunning);
 	}
 
-	private async getLibraries(manifest: MinecraftJavaManifest, path: string, libraries: MinecraftJavaLibrary[] = []) {
-		libraries.push(...mapLibraries(manifest.libraries, path));
+	private async getLibraries(manifest: MinecraftJavaManifest, libraries: MinecraftJavaLibrary[] = []) {
+		libraries.push(...manifest.libraries);
 		for (const component of this.instance.store.components)
 			if (component instanceof MinecraftExtension)
 				libraries.push(...await component.getLibraries());
 
-		return libraries;
+		return libraries.map((library: any) => {
+			if (library.url)
+				return {
+					...library,
+					downloads: {
+						artifact: {
+							url: `${library.url}/${mavenAsString(library.name, '', '')}`,
+							path: mavenAsString(library.name)
+						}
+					}
+				};
+			return library;
+		}).filter(({ rules }) => {
+			if (rules)
+				return rules.every(parseRule);
+			return true;
+		});
 	}
 
 	private async downloadLibraries(libraries: MinecraftJavaLibrary[], download?: Download): Promise<void> {
         const { id, version } = this.instance.gameComponent;
 		const downloader = this.instance.manager.voxura.downloader;
-        const existing = await filesExist(libraries.filter(l => l.path && l.url).map(l => l.path));
+
+		const artifacts = libraries.map(l => l.downloads?.artifact!).filter(a => a).map(a => ({
+			...a,
+			path: `${this.librariesPath}/${a.path}`
+		}));
+        const existing = await filesExist(artifacts.map(a => a.path));
         if (!download && Object.values(existing).some(e => !e)) {
             download = new Download('component_libraries', [id, version], downloader);
 			download.setState(DownloadState.Downloading);
@@ -324,10 +358,9 @@ export default class MinecraftJava extends GameComponent {
 
         await pmap(Object.entries(existing), async([path, exists]: [path: string, exists: boolean]) => {
             if (!exists) {
-                const library = libraries.find(l => l.path === path);
-				const url = library?.url;
+                const url = artifacts.find(l => l.path === path)?.url;
                 if (url) {
-                    const sub = new Download('component_library', null, downloader, false);
+                    const sub = new Download('', null, downloader, false);
                     download!.addDownload(sub);
                     return sub.download(url, path);
                 }
@@ -337,7 +370,7 @@ export default class MinecraftJava extends GameComponent {
     }
 
 	private getClassPaths(libraries: MinecraftJavaLibrary[], clientPath: string) {
-		const paths = libraries.map(l => l.path.replace(/\/+|\\+/g, '/'));
+		const paths = libraries.map(l => l.downloads?.artifact!).filter(a => a).map(l => `${this.librariesPath}/${l.path}`);
 		paths.push(clientPath);
 
 		return paths.join(classPathSeperator());
@@ -385,8 +418,8 @@ export default class MinecraftJava extends GameComponent {
 
 	private parseJvmArgument(argument: string, manifest: MinecraftJavaManifest, classPaths: string) {
 		return argument
-			.replace('${natives_directory}', './natives')
-			.replace('${library_directory}', '../../libraries"')
+			.replace('${natives_directory}', this.nativesPath)
+			.replace('${library_directory}', this.instance.manager.librariesPath)
 			.replace('${classpath_separator}', classPathSeperator())
 			.replace('${launcher_name}', 'voxura')
 			.replace('${launcher_version}', VOXURA_VERSION)
@@ -424,7 +457,7 @@ export default class MinecraftJava extends GameComponent {
 			.replace('${user_type}', 'mojang')
 			.replace('${version_name}', manifest.id)
 			.replace('${assets_index_name}', manifest.assets)
-			.replace('${game_directory}', './')
+			.replace('${game_directory}', this.instance.path)
 			.replace('${assets_root}', assetsPath)
 			.replace('${game_assets}', assetsPath)
 			.replace('${version_type}', manifest.type)
@@ -460,6 +493,10 @@ export default class MinecraftJava extends GameComponent {
 	public get nativesPath() {
         return this.instance.path + '/natives';
     }
+
+	public get librariesPath() {
+		return this.instance.voxura.rootPath + '/libraries';
+	}
 };
 
 function parseRule(rule: Rule) {
@@ -496,6 +533,17 @@ interface JavaAssetIndex {
 			size: number
 		}
 	}
+};
+
+function convertPlatform(os: string): string {
+    switch (os) {
+        case 'win32':
+            return 'windows';
+        case 'darwin':
+            return 'osx';
+        default:
+            return os;
+    };
 };
 
 export const MANIFESTS_URL = 'https://piston-meta.mojang.com/mc/game/version_manifest.json';
