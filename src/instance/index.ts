@@ -35,19 +35,21 @@ const STORE_CLASS = [
     mdpkmInstanceConfig
 ];
 export default class Instance extends EventEmitter {
-    public id: string;
-    public name: string;
-    public path: string;
-    public icon?: Uint8Array | void;
-    public store: InstanceStore;
-    public state: InstanceState = InstanceState.None;
-	public banner?: Uint8Array | void;
-    public manager: InstanceManager;
-	public processes: Child[] = [];
-    public readingMods: boolean = false;
-    public hasReadMods: boolean = false;
-    public modifications: Mod[];
-    public voxura: Voxura
+    public id: string
+    public name: string
+    public path: string
+    public icon?: Uint8Array | void
+    public store: InstanceStore
+    public state: InstanceState = InstanceState.None
+	public voxura: Voxura
+	public banner?: Uint8Array | void
+    public manager: InstanceManager
+	public processes: Child[] = []
+	public iconFormat: string = 'png'
+    public readingMods: boolean = false
+    public hasReadMods: boolean = false
+	public bannerFormat: string = 'png'
+    public modifications: Mod[]
     
     public constructor(manager: InstanceManager, name: string, path: string) {
         super();
@@ -103,13 +105,23 @@ export default class Instance extends EventEmitter {
     }
 
 	public async readIcon() {
-		if (await exists(this.iconPath))
-			this.icon = await readBinaryFile(this.iconPath).catch(console.warn);
+		for (const format of ALLOWED_ICON_FORMATS) {
+			const path = this.iconPath + format;
+			if (await exists(path)) {
+				this.icon = await readBinaryFile(path).catch(console.warn);
+				this.iconFormat = format;
+			}
+		}
 	}
 
 	public async readBanner() {
-		if (await exists(this.bannerPath))
-			this.banner = await readBinaryFile(this.bannerPath).catch(console.warn);
+		for (const format of ALLOWED_ICON_FORMATS) {
+			const path = this.bannerPath + format;
+			if (await exists(path)) {
+				this.banner = await readBinaryFile(path).catch(console.warn);
+				this.bannerFormat = format;
+			}
+		}
 	}
 
 	public async setCategory(value: string) {
@@ -254,11 +266,11 @@ export default class Instance extends EventEmitter {
     }
 
 	public get iconPath() {
-		return this.path + '/icon.png';
+		return this.path + '/icon.';
 	}
 
 	public get bannerPath() {
-		return this.path + '/banner.png';
+		return this.path + '/banner.';
 	}
 
     public get storePath() {
@@ -294,7 +306,7 @@ export default class Instance extends EventEmitter {
     }
 
     public get webIcon(): string {
-        return this.icon ? `data:image/png;base64,${this.base64Icon}` : this.defaultIcon;
+        return this.icon ? `data:image/${this.iconFormat};base64,${this.base64Icon}` : this.defaultIcon;
     }
 
 	public get storeType() {
@@ -310,3 +322,5 @@ export class LaunchError extends Error {
 		this.extraData = extraData;
 	}
 }
+
+export const ALLOWED_ICON_FORMATS = ['png', 'gif'];
