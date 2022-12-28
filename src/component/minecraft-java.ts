@@ -8,7 +8,7 @@ import { LaunchError } from '../instance';
 import { InstanceState } from '../types';
 import MinecraftExtension from './minecraft-extension';
 import { Download, DownloadState } from '../downloader';
-import { PLATFORM, VOXURA_VERSION, MINECRAFT_RESOURCES_URL, MINECRAFT_VERSION_MANIFEST } from '../util/constants';
+import { ARCH, PLATFORM, VOXURA_VERSION, MINECRAFT_RESOURCES_URL, MINECRAFT_VERSION_MANIFEST } from '../util/constants';
 import { fileExists, filesExist, invokeTauri, readJsonFile, mapLibraries, createCommand, convertPlatform } from '../util';
 
 export type Rule = {
@@ -220,7 +220,7 @@ export default class MinecraftJava extends GameComponent {
 			if (!exists) {
 				const asset = assets.find(l => l.path === path);
 				if (asset) {
-					const sub = new Download('', null, downloader);
+					const sub = new Download('', null, downloader, false);
 					download.addDownload(sub);
 
 					return sub.download(asset.url, path);
@@ -236,14 +236,18 @@ export default class MinecraftJava extends GameComponent {
 				sub.setState(DownloadState.Extracting);
 
 				invokeTauri('extract_archive_contains', {
-					id: sub.id,
+					id: sub.uuid,
 					path: this.nativesPath,
 					target: path,
 					contains: '.dll'
-				});
+				}).then(console.log);
 
 				download.addDownload(sub);
 			}
+	}
+
+	private async checkNatives(libraries: any[]) {
+
 	}
 
 	public async launch() {
@@ -463,6 +467,10 @@ function parseRule(rule: Rule) {
 	const osName = rule.os?.name;
 	if (osName)
 		result = osName === convertPlatform(PLATFORM);
+
+	const arch = rule.os?.arch;
+	if (arch)
+		result = arch === ARCH;
 
 	const features = rule.features;
 	if (features) {
