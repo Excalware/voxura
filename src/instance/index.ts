@@ -154,7 +154,7 @@ export default class Instance extends EventEmitter {
 		await createDir(this.modsPath, { recursive: true });
 
 		const path = `${link ? this.voxura.linkedPath : this.modsPath}/${name}`;
-		const download = new Download('game_mod', [mod.displayName], this.voxura.downloader);
+		const download = new Download('game_mod', [mod.displayName, mod.source.id], this.voxura.downloader);
 		await download.download(url, path);
 		
 		if (link)
