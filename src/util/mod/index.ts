@@ -32,7 +32,7 @@ export default abstract class Mod {
     }
 
     public get webIcon() {
-        return this.icon ? `data:image/png;base64,${this.base64Icon}` : 'img/icons/unknown_mod.svg';
+        return this.icon ? `data:image/png;base64,${this.base64Icon}` : null;
     }
 
     public get base64Icon() {
