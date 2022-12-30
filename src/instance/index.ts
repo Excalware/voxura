@@ -1,9 +1,9 @@
 import { t } from 'i18next';
 import { Buffer } from 'buffer';
 import { satisfies } from 'semver';
-import type { Child  } from '@tauri-apps/api/shell';
+import type { Child } from '@tauri-apps/api/shell';
 import { v4 as uuidv4 } from 'uuid';
-import { exists, removeDir, readBinaryFile } from '@tauri-apps/api/fs';
+import { exists, createDir, removeDir, readBinaryFile } from '@tauri-apps/api/fs';
 
 import type Mod from '../util/mod';
 import { Download } from '../downloader';
@@ -150,6 +150,8 @@ export default class Instance extends EventEmitter {
         const name = file.filename ?? file.fileName;
         const url = file.url ?? file.downloadUrl;
         console.log('file:', file);
+
+		await createDir(this.modsPath, { recursive: true });
 
 		const path = `${link ? this.voxura.linkedPath : this.modsPath}/${name}`;
 		const download = new Download('game_mod', [mod.displayName], this.voxura.downloader);
