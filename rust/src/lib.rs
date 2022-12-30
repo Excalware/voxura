@@ -9,7 +9,7 @@ pub mod auth;
 pub mod storage;
 
 use std::fs;
-use std::fs::{ File };
+use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::collections::HashMap;
@@ -65,19 +65,22 @@ fn real_read_mod<R: Runtime>(app_handle: tauri::AppHandle<R>, path: &Path) -> Re
 
 					if data.meta.is_none() || data.icon.is_none() {
 						for i in 0..archive.len() {
-							let mut file2 = archive.by_index(i).unwrap();
-							let name = file2.name().to_string();
-							if data.meta.is_none() && (name == "fabric.mod.json" || name.contains("mods.toml")) {
-								let mut buf = String::new();
-								file2.read_to_string(&mut buf).unwrap();
+							if let Ok(mut file2) = archive.by_index(i) {
+								let name = file2.name().to_string();
+								if !name.contains("/") || name.contains("META-INF") {
+									if data.meta.is_none() && (name == "fabric.mod.json" || name.contains("mods.toml")) {
+										let mut buf = String::new();
+										file2.read_to_string(&mut buf).unwrap();
 
-								data.meta = Some(buf);
-								data.meta_name = Some(name);
-							} else if data.icon.is_none() && (name.contains("icon.png") || name.contains("logo.png")) {
-								let mut buf = Vec::new();
-								file2.read_to_end(&mut buf).unwrap();
+										data.meta = Some(buf);
+										data.meta_name = Some(name);
+									} else if data.icon.is_none() && (name == "icon.png" || name == "logo.png") {
+										let mut buf = Vec::new();
+										file2.read_to_end(&mut buf).unwrap();
 
-								data.icon = Some(buf);
+										data.icon = Some(buf);
+									}
+								}
 							}
 						}
 					}
@@ -97,13 +100,17 @@ fn read_mod<R: Runtime>(app_handle: tauri::AppHandle<R>, path: String) -> Result
 
 #[tauri::command]
 fn read_mods<R: Runtime>(app_handle: tauri::AppHandle<R>, path: String) -> Vec<Mod> {
-    let mut mods = Vec::new();
-    for entry in fs::read_dir(path).unwrap() {
-		match real_read_mod(app_handle.clone(), entry.unwrap().path().as_path()) {
-			Ok(x) => mods.push(x),
-			Err(x) => println!("{}", x)
+    let mut mods = vec![];
+	if let Ok(dir) = fs::read_dir(path) {
+		for entry in dir {
+			if let Ok(entry) = entry {
+				match real_read_mod(app_handle.clone(), entry.path().as_path()) {
+					Ok(x) => mods.push(x),
+					Err(x) => println!("{}", x)
+				}
+			}
 		}
-    }
+	}
 
     mods
 }
@@ -159,27 +166,28 @@ fn download_file<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, path: 
 fn extract_archive<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, target: String, path: String) {
     tauri::async_runtime::spawn(async move {
         let path = Path::new(&path);
-        let file = std::fs::File::open(&target).unwrap();
-        if target.ends_with(".zip") {
-            let mut archive = zip::ZipArchive::new(file).unwrap();
-            app_handle.emit_all("download_update", DownloadPayload {
-                id: id.to_string(),
-                total: 2,
-                progress: 1
-            }).unwrap();
+        if let Ok(file) = File::open(&target) {
+			if target.ends_with(".zip") {
+				let mut archive = zip::ZipArchive::new(file).unwrap();
+				app_handle.emit_all("download_update", DownloadPayload {
+					id: id.to_string(),
+					total: 2,
+					progress: 1
+				}).unwrap();
 
-            archive.extract(path).unwrap();
-        } else if target.ends_with(".tar.gz") {
-            let tar = GzDecoder::new(file);
-            let mut archive = tar::Archive::new(tar);
-            app_handle.emit_all("download_update", DownloadPayload {
-                id: id.to_string(),
-                total: 2,
-                progress: 1
-            }).unwrap();
+				archive.extract(path).unwrap();
+			} else if target.ends_with(".tar.gz") {
+				let tar = GzDecoder::new(file);
+				let mut archive = tar::Archive::new(tar);
+				app_handle.emit_all("download_update", DownloadPayload {
+					id: id.to_string(),
+					total: 2,
+					progress: 1
+				}).unwrap();
 
-            archive.unpack(path).unwrap();
-        }
+				archive.unpack(path).unwrap();
+			}
+		}
 
         app_handle.emit_all("download_update", DownloadPayload {
             id: id.to_string(),
@@ -194,25 +202,26 @@ fn extract_natives<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, targ
     tauri::async_runtime::spawn(async move {
         fs::create_dir_all(&path).unwrap();
 
-        let file = File::open(target).unwrap();
-        let mut archive = zip::ZipArchive::new(file).unwrap();
-        app_handle.emit_all("download_update", DownloadPayload {
-            id: id.to_string(),
-            total: 2,
-            progress: 1
-        }).unwrap();
+        if let Ok(file) = File::open(target) {
+			let mut archive = zip::ZipArchive::new(file).unwrap();
+			app_handle.emit_all("download_update", DownloadPayload {
+				id: id.to_string(),
+				total: 2,
+				progress: 1
+			}).unwrap();
 
-        for i in 0..archive.len() {
-            if let Ok(mut file) = archive.by_index(i) {
-				if let Some(name) = file.enclosed_name() {
-					if name.extension().filter(|e| e.to_str().unwrap() == "dll").is_some() {
-						if let Ok(mut file2) = File::create(Path::new(&path).join(name.file_name().unwrap().to_str().unwrap())) {
-							std::io::copy(&mut file, &mut file2).unwrap();
+			for i in 0..archive.len() {
+				if let Ok(mut file) = archive.by_index(i) {
+					if let Some(name) = file.enclosed_name() {
+						if name.extension().filter(|e| e.to_str().unwrap() == "dll").is_some() {
+							if let Ok(mut file2) = File::create(Path::new(&path).join(name.file_name().unwrap().to_str().unwrap())) {
+								std::io::copy(&mut file, &mut file2).unwrap();
+							}
 						}
 					}
 				}
 			}
-        }
+		}
 
         app_handle.emit_all("download_update", DownloadPayload {
             id: id.to_string(),

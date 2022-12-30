@@ -74,7 +74,7 @@ export function getModByFile({ md5, name, icon, path, meta, meta_name }: RustMod
             mod.icon = Buffer.from(icon);
         
         return mod;
-    } if (meta_name.includes('mods.toml')) {
+    } if (meta_name?.includes('mods.toml')) {
         const mod = new ForgeMod(name, path, md5, meta);
         if (icon)
             mod.icon = Buffer.from(icon);
@@ -82,5 +82,5 @@ export function getModByFile({ md5, name, icon, path, meta, meta_name }: RustMod
         return mod;
     }
 
-    return new UnknownMod(name, path);
+    return new UnknownMod(name, path, md5);
 };
