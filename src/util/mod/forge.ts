@@ -26,6 +26,6 @@ export default class ForgeMod extends Mod {
     }
 
     private get modData() {
-        return this.metadata?.['[mods]'];
+        return this.metadata?.mods?.[0];
     }
 };
