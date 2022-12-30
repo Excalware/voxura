@@ -65,8 +65,6 @@ export default class Instance extends EventEmitter {
 
     public async init(): Promise<void> {
         await this.refresh();
-
-        console.log('Loaded', this.name);
     }
 
     public async refresh(): Promise<void> {
@@ -139,7 +137,7 @@ export default class Instance extends EventEmitter {
 		this.emitEvent('changed');
 	}
 
-	public getComponentByType<T extends InstanceComponent<any>, P extends typeof InstanceComponent<any>>(type: P): T | undefined {
+	public getComponentByType<T extends InstanceComponent, P extends typeof InstanceComponent<any>>(type: P): T | undefined {
 		return this.store.components.find(c => c instanceof type) as any;
 	}
 
@@ -184,7 +182,7 @@ export default class Instance extends EventEmitter {
         if (this.state !== InstanceState.None)
             throw new Error('Instance state must be InstanceState.None');
 
-        console.log('[voxura.instances]: Launching', this);
+        this.manager.logger.info('launching', this.name);
         this.setState(InstanceState.Launching);
 
 		const { components } = this.store;

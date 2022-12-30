@@ -1,3 +1,4 @@
+import { Logger } from 'tslog';
 import { createDir } from '@tauri-apps/api/fs';
 
 import Modrinth from './platform/modrinth';
@@ -24,6 +25,7 @@ export interface VoxuraConfig {
 };
 export class Voxura {
     public auth: Authentication;
+	public logger: Logger<unknown>;
     public config: VoxuraConfig;
     public rootPath: string;
     public platforms: Record<string, Platform>;
@@ -31,7 +33,13 @@ export class Voxura {
     public downloader: Downloader;
 
     public constructor(path: string, config?: VoxuraConfig) {
+		this.logger = new Logger({
+			name: 'voxura',
+			prettyLogTemplate: '{{logLevelName}} [{{name}}]: ',
+			hideLogPositionForProduction: true
+		});
         this.rootPath = path.replace(/\/+|\\+/g, '/').replace(/\/$/g, '');
+
         this.auth = new Authentication(this);
 		this.instances = new InstanceManager(this, this.rootPath + '/instances');
         this.downloader = new Downloader(this);
@@ -43,6 +51,7 @@ export class Voxura {
 
 	public async init() {
 		await createDir(this.rootPath, { recursive: true });
+		this.logger.info('initialized');
 	}
 
     public addPlatform(platform: Platform) {

@@ -11,7 +11,7 @@ export type ComponentData = {
 export type ComponentJson = {
 	id?: string;
 };
-export default abstract class InstanceComponent<T extends ComponentJson> {
+export default abstract class InstanceComponent<T extends ComponentJson = ComponentJson> {
 	public static readonly id: string
 	public static type: ComponentType
 	public instance: Instance

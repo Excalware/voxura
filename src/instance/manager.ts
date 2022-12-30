@@ -1,3 +1,4 @@
+import { Logger } from 'tslog';
 import { readDir, createDir } from '@tauri-apps/api/fs';
 
 import Instance from '.';
@@ -14,6 +15,7 @@ const DEFAULT_STORE: InstanceManagerStore = {
 export default class InstanceManager extends EventEmitter {
     public store: InstanceManagerStore = DEFAULT_STORE;
     public voxura: Voxura;
+	public logger: Logger<unknown>;
 	public loading: boolean = false;
     public instances: Array<Instance> = new Array<Instance>();
     private path: string;
@@ -22,12 +24,15 @@ export default class InstanceManager extends EventEmitter {
         super();
         this.path = path;
         this.voxura = voxura;
+		this.logger = voxura.logger.getSubLogger({ name: 'instances' });
     }
 
     public async init() {
 		await createDir(this.path, { recursive: true });
         this.store = await readJsonFile<InstanceManagerStore>(this.storePath).catch(console.log) ?? DEFAULT_STORE;
-    }
+		
+		this.logger.info('initialized');
+	}
 
     public get(id: string): Instance | void {
         return this.instances.find(i => i.id === id);
@@ -59,6 +64,7 @@ export default class InstanceManager extends EventEmitter {
                     promises.push(instance.init());
 
                     this.instances.push(instance);
+					this.logger.info('loaded', instance.name);
                 }
 		await Promise.all(promises);
 		

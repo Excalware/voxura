@@ -1,4 +1,5 @@
 import { open } from '@tauri-apps/api/shell';
+import { Logger } from 'tslog';
 
 import { Voxura } from '../voxura';
 import { readJsonFile, writeJsonFile } from '../util';
@@ -44,6 +45,7 @@ interface AccountJson {
     selected?: string
 };
 export default class Authentication extends EventEmitter {
+	public logger: Logger<unknown>;
     public accounts: Account[];
     private data: AccountJson = { data: [] };
     private voxura: Voxura;
@@ -52,6 +54,7 @@ export default class Authentication extends EventEmitter {
     public constructor(voxura: Voxura) {
         super();
         this.voxura = voxura;
+		this.logger = voxura.logger.getSubLogger({ name: 'auth' });
         this.accounts = [];
     }
 
@@ -91,6 +94,7 @@ export default class Authentication extends EventEmitter {
 
 			this.emitEvent('accountsChanged');
 			this.emitEvent('selectedChanged');
+			this.logger.info('loaded', this.accounts.length, 'accounts from file');
         } catch(err) {
             console.warn(`Error while loading from file:`, err);
         }
@@ -115,6 +119,7 @@ export default class Authentication extends EventEmitter {
     public async refreshAccounts(): Promise<void> {
         for (const account of this.accounts)
             await account.refresh().catch(console.warn);
+		this.logger.info('refreshed', this.accounts.length, 'accounts');
     }
 
     public async selectAccount(account: Account): Promise<void> {
@@ -123,6 +128,7 @@ export default class Authentication extends EventEmitter {
 
         await this.saveToFile();
         this.emitEvent('selectedChanged');
+		this.logger.info('set current account to', account.uuid);
     }
 
     public async removeAccount(account: Account): Promise<void> {
@@ -135,10 +141,12 @@ export default class Authentication extends EventEmitter {
 
         await this.saveToFile();
         this.emitEvent('accountsChanged');
+		this.logger.info('removed', account.uuid);
     }
 
     public async saveToFile(): Promise<void> {
-        return writeJsonFile(this.dataPath, this.data);
+        await writeJsonFile(this.dataPath, this.data);
+		this.logger.info('saved current data to file');
     }
 
     private get dataPath(): string {

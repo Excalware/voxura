@@ -127,6 +127,11 @@ toml@^3.0.0:
   resolved "https://registry.yarnpkg.com/toml/-/toml-3.0.0.tgz#342160f1af1904ec9d204d03a5d61222d762c5ee"
   integrity sha512-y/mWCZinnvxjTKYhJ+pYxwD0mRLVvOtdS2Awbgxln6iEnt4rk0yBxeSBHkGJcPucRiG0e55mwWp+g/05rsrd6w==
 
+tslog@^4.7.1:
+  version "4.7.1"
+  resolved "https://registry.yarnpkg.com/tslog/-/tslog-4.7.1.tgz#c439a5d900bfa020da5f04b0719acb064a7bee4e"
+  integrity sha512-Ez90j4FKCUp9bBlgPq96aYDUbXRIOxz6Vxn/4Iw2/IiVxLB5wsUVkWfeK4oqdRMoW8qBVJz9oIT+ysjfyIRufw==
+
 uuid@^9.0.0:
   version "9.0.0"
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-9.0.0.tgz#592f550650024a38ceb0c562f2f6aa435761efb5"
