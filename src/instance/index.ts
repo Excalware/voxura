@@ -3,7 +3,7 @@ import { Buffer } from 'buffer';
 import { satisfies } from 'semver';
 import type { Child } from '@tauri-apps/api/shell';
 import { v4 as uuidv4 } from 'uuid';
-import { exists, createDir, removeDir, readBinaryFile } from '@tauri-apps/api/fs';
+import { exists, createDir, removeDir, removeFile, readBinaryFile } from '@tauri-apps/api/fs';
 
 import type Mod from '../util/mod';
 import { Download } from '../downloader';
@@ -179,6 +179,13 @@ export default class Instance extends EventEmitter {
 		this.modifications.push(mod2);
 		this.emitEvent('changed');
     }
+
+	public async removeMod(mod: Mod) {
+		await removeFile(mod.path);
+
+		this.modifications = this.modifications.filter(m => m !== mod);
+		this.emitEvent('changed');
+	}
 
     public async launch(): Promise<void> {
         if (this.state !== InstanceState.None)
