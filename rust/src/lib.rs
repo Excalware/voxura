@@ -190,11 +190,11 @@ fn extract_archive<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, targ
 }
 
 #[tauri::command]
-fn extract_archive_contains<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, target: String, path: String, contains: String) {
+fn extract_natives<R: Runtime>(app_handle: tauri::AppHandle<R>, id: String, target: String, path: String) {
     tauri::async_runtime::spawn(async move {
-        fs::create_dir_all(Path::new(&path)).unwrap();
+        fs::create_dir_all(&path).unwrap();
 
-        let file = std::fs::File::open(target).unwrap();
+        let file = File::open(target).unwrap();
         let mut archive = zip::ZipArchive::new(file).unwrap();
         app_handle.emit_all("download_update", DownloadPayload {
             id: id.to_string(),
@@ -203,32 +203,15 @@ fn extract_archive_contains<R: Runtime>(app_handle: tauri::AppHandle<R>, id: Str
         }).unwrap();
 
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i).unwrap();
-            if !file.enclosed_name().unwrap().to_str().unwrap().contains(&*contains) {
-                continue;
-            }
-            let concat = format!(
-                "{}/{}",
-                path,
-                file.enclosed_name()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .replace(&*path, "")
-            );
-            let outpath = std::path::Path::new(&concat);
-    
-            if (&*file.name()).ends_with('/') {
-                std::fs::create_dir_all(&*outpath).unwrap();
-            } else {
-                if let Some(p) = outpath.parent() {
-                    if !p.exists() {
-                        std::fs::create_dir_all(&p).unwrap();
-                    }
-                }
-                let mut outfile = std::fs::File::create(&outpath).unwrap();
-                std::io::copy(&mut file, &mut outfile).unwrap();
-            }
+            if let Ok(mut file) = archive.by_index(i) {
+				if let Some(name) = file.enclosed_name() {
+					if name.extension().filter(|e| e.to_str().unwrap() == "dll").is_some() {
+						if let Ok(mut file2) = File::create(Path::new(&path).join(name.file_name().unwrap().to_str().unwrap())) {
+							std::io::copy(&mut file, &mut file2).unwrap();
+						}
+					}
+				}
+			}
         }
 
         app_handle.emit_all("download_update", DownloadPayload {
@@ -275,8 +258,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 		get_file_md5,
         download_file,
         extract_archive,
+		extract_natives,
 		request_microsoft_code,
-        extract_archive_contains,
 		
 		cmd::storage_set,
 		cmd::storage_get,

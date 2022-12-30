@@ -192,9 +192,6 @@ export default class MinecraftJava extends GameComponent {
 		await this.downloadLibraries(libraries, download);
 
 		await this.extractNatives(download, libraries);
-
-		if (libraries.some(l => l.natives))
-			await download.waitForFinish();
 	}
 
 	private async downloadAssets(assetIndex: JavaAssetIndex) {
@@ -230,9 +227,12 @@ export default class MinecraftJava extends GameComponent {
 	}
 
 	private async extractNatives(download: Download, libraries: MinecraftJavaLibrary[]) {
+		download.setState(DownloadState.Extracting);
 		for (const library of libraries) {
-			const { natives, downloads } = library;
-			if (natives && downloads) {
+			const { rules, natives, downloads } = library;
+			if (rules && !rules.every(parseRule))
+				continue;
+			if (downloads) {
 				const sub = new Download('', null, this.instance.manager.voxura.downloader, false);
 
 				let artifact = downloads?.artifact;
@@ -251,17 +251,16 @@ export default class MinecraftJava extends GameComponent {
 					await sub.download(artifact.url, path);
 
 				sub.setState(DownloadState.Extracting);
-
-				invokeTauri('extract_archive_contains', {
+				invokeTauri('extract_natives', {
 					id: sub.uuid,
 					path: this.nativesPath,
-					target: path,
-					contains: '.dll'
+					target: path
 				});
 
 				download.addDownload(sub);
 			}
 		}
+		await download.waitForFinish();
 	}
 
 	public async launch() {
@@ -274,6 +273,11 @@ export default class MinecraftJava extends GameComponent {
 
 		const libraries = await this.getLibraries(manifest);
 		await this.downloadLibraries(libraries);
+
+		if (!await exists(this.nativesPath)) {
+			const download = new Download('minecraft_java', [this.version], this.instance.voxura.downloader);
+			await this.extractNatives(download, libraries);
+		}
 
 		for (const component of this.instance.store.components)
 			if (component instanceof MinecraftExtension) {
