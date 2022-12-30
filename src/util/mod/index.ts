@@ -1,13 +1,14 @@
 import type Platform from '../../platform';
 import type { Buffer } from 'buffer';
+import type { Dependencies } from '../../component';
 export default abstract class Mod {
-	public md5: string;
-    public path: string;
-	public icon?: Buffer;
-	public source?: Platform;
-    public fileName: string;
-    public metadata?: any;
-    public abstract loader: string;
+	public md5: string
+    public path: string
+	public icon?: Buffer
+	public source?: Platform
+    public fileName: string
+    public metadata?: any
+    public dependencies: Dependencies = []
 
     constructor(name: string, filePath: string, md5: string) {
         this.fileName = name;
@@ -38,4 +39,4 @@ export default abstract class Mod {
     public get base64Icon() {
         return this.icon?.toString('base64');
     }
-};
+}

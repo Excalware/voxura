@@ -3,9 +3,12 @@ import toml from 'toml';
 import Mod from './';
 export interface ForgeMetadata {
     
-};
+}
 export default class ForgeMod extends Mod {
-    public loader: string = 'forge';
+    public dependencies = [{
+		id: ['forge'],
+		versionRange: '*'
+	}]
     constructor(name: string, filePath: string, md5: string, metadata: string) {
         super(name, filePath, md5);
         try {
@@ -28,4 +31,4 @@ export default class ForgeMod extends Mod {
     private get modData() {
         return this.metadata?.mods?.[0];
     }
-};
+}

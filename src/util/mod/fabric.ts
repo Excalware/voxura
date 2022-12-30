@@ -1,32 +1,35 @@
 import Mod from './';
 export interface FabricMetadata {
-    schemaVersion: number,
+    schemaVersion: number
 
-    id: string,
-    name: string,
-    description: string,
-    version: string,
+    id: string
+    name: string
+    description: string
+    version: string
     authors: ({
-        name: string,
+        name: string
         contact: {
-            sources: string,
-            homepage: string,
+            sources: string
+            homepage: string
             discord_link: string
         }
-    } | string)[],
-    environment: 'server' | 'client',
-    entrypoints: Record<string, any[]>,
+    } | string)[]
+    environment: 'server' | 'client'
+    entrypoints: Record<string, any[]>
     
-    icon: string,
+    icon: string
     contact: {
         homepage: string
-    },
-    depends: Record<string, string>,
+    }
+    depends: Record<string, string>
     custom?: Record<string, any>
-};
+}
 export default class FabricMod extends Mod {
-    public loader: string = 'fabric';
-    declare public readonly metadata?: FabricMetadata;
+    public dependencies = [{
+		id: ['fabric'],
+		versionRange: '*'
+	}]
+    declare public readonly metadata?: FabricMetadata
     constructor(name: string, filePath: string, md5: string, metadata: string) {
         super(name, filePath, md5);
         try {
@@ -49,4 +52,4 @@ export default class FabricMod extends Mod {
     public get version() {
         return this.metadata?.version ?? super.version;
     }
-};
+}
