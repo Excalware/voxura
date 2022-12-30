@@ -38,4 +38,6 @@ export default abstract class Platform {
 	public get id() {
         return (<typeof Platform>this.constructor).id;
     }
+
+	public abstract get baseProjectURL(): string
 };

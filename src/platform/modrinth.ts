@@ -97,6 +97,10 @@ export default class Modrinth extends Platform {
     public async getMod(id: string): Promise<ModrinthMod> {
         return new ModrinthMod(id, await this.getProjectData(id), this);
     }
+
+	public get baseProjectURL() {
+		return 'https://modrinth.com/project/';
+	}
 };
 
 interface ProjectData {
