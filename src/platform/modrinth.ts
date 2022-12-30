@@ -68,7 +68,7 @@ export default class Modrinth extends Platform {
             categories,
             projectType
         } = options;
-        return fetch<any>('https://api.modrinth.com/v2/search', {
+        return fetch<any>(`${API_BASE}/search`, {
             query: {
                 query,
                 limit: limit.toString(),
@@ -91,7 +91,7 @@ export default class Modrinth extends Platform {
     }
 
     private getProjectData(id: string): Promise<ProjectData> {
-        return fetch<ProjectData>('https://api.modrinth.com/v2/project/' + id).then(r => r.data);
+        return fetch<ProjectData>(`${API_BASE}/project/${id}`).then(r => r.data);
     }
 
     public async getMod(id: string): Promise<ModrinthMod> {
@@ -103,12 +103,18 @@ export default class Modrinth extends Platform {
 	}
 };
 
-interface ProjectData {
+export interface ProjectData {
     project_id: string
-};
+}
 export class ModrinthProject extends Project {
-    
-};
-export class ModrinthMod extends Mod implements ModrinthProject {
-    
-};
+	public getVersions(): Promise<any[]> {
+        return fetch<any[]>(`${API_BASE}/project/${this.id}/version`).then(d => d.data);
+    }
+}
+export class ModrinthMod extends Mod {
+    public getVersions(): Promise<any[]> {
+        return fetch<any[]>(`${API_BASE}/project/${this.id}/version`).then(d => d.data);
+    }
+}
+
+export const API_BASE = 'https://api.modrinth.com/v2';

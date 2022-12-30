@@ -9,6 +9,8 @@ export default abstract class Project {
         this.source = source;
     }
 
+	public abstract getVersions(): Promise<any[]>
+
     public get displayName(): string {
         return this.data.title ?? this.data.name ?? this.slug;
     }
@@ -37,7 +39,7 @@ export default abstract class Project {
         return this.data.icon_url ?? this.data.logo?.url ?? this.data.art?.find((a: any) => a.type === 'square')?.url;
     }
 
-    public get isNsfw(): boolean {
+    public get isExplict(): boolean {
         return false;
     }
 };

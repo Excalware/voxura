@@ -1,5 +1,3 @@
-import { fetch } from '@tauri-apps/api/http';
-
 import Project from './project';
 import type Instance from '../instance';
 import GameComponent from '../component/game-component';
@@ -24,14 +22,9 @@ export default abstract class Mod extends Project {
         return ModSide.Unknown;
     }
 
-    public getVersions(): Promise<any[]> {
-        return fetch<any[]>(`https://api.modrinth.com/v2/project/${this.id}/version`).then(d => d.data);
-    }
-
     public async getLatestVersion(instance: Instance) {
         const versions = await this.getVersions();
 		const { components } = instance.store;
-		console.log(versions);
         return versions.find(({ loaders, game_versions }) =>
             loaders.some((l: any) => components.some(c => c.getPlatformId(this.source) === l)) && game_versions.some((v: any) => components.some(c => c instanceof GameComponent && c.version === v))
         );
