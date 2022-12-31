@@ -146,7 +146,10 @@ export default class Instance extends EventEmitter {
         const version = await mod.getLatestVersion(this);
         console.log('latest version:', version);
 
-        const file = version?.files?.find((f: any) => f.primary && (f.url ?? f.downloadUrl)) ?? version?.files?.find((f: any) => f.url ?? f.downloadUrl) ?? version;
+		if (!version)
+			throw new CompatibilityError(`${mod.displayName} is incompatible with ${this.name}`);
+
+        const file = version.files?.find((f: any) => f.primary && (f.url ?? f.downloadUrl)) ?? version.files?.find((f: any) => f.url ?? f.downloadUrl) ?? version;
         const name = file.filename ?? file.fileName;
         const url = file.url ?? file.downloadUrl;
         console.log('file:', file);
@@ -158,7 +161,9 @@ export default class Instance extends EventEmitter {
 		await download.download(url, path);
 		
 		if (link)
-			await createSymlink(path, `${this.modsPath}/${name}`);
+			await createSymlink(path, `${this.modsPath}/${name}`).catch(err => {
+				throw new SymlinkError('symlink failure', { cause: err });
+			});
 
 		const modData = await invokeTauri<RustMod>('read_mod', { path });
 		await getStoredValue<VoxuraStore["projects"]>('projects', {}).then(projects => {
@@ -321,7 +326,9 @@ export default class Instance extends EventEmitter {
 	}
 };
 
+export class CompatibilityError extends Error {}
 export class DependencyError extends Error {}
+export class SymlinkError extends Error {}
 export class LaunchError extends Error {
 	public readonly extraData?: any[]
 	public constructor(message: string, extraData?: any[]) {
