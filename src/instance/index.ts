@@ -19,7 +19,7 @@ import { Voxura, VoxuraStore } from '../voxura';
 import { getStoredValue, setStoredValue } from '../storage';
 import InstanceStore, { InstanceStoreType } from './store';
 import InstanceComponent, { ComponentType } from '../component';
-import { fileExists, invokeTauri, readJsonFile, getModByFile, writeJsonFile, createSymlink } from '../util';
+import { fileExists, invokeTauri, readJsonFile, getModByFile, writeJsonFile } from '../util';
 
 export interface RustMod {
 	md5: string
@@ -141,7 +141,7 @@ export default class Instance extends EventEmitter {
 		return this.store.components.find(c => c instanceof type) as any;
 	}
 
-    public async installMod(mod: PlatformMod, link: boolean = true): Promise<void> {
+    public async installMod(mod: PlatformMod): Promise<void> {
         console.log(mod);
         const version = await mod.getLatestVersion(this);
         console.log('latest version:', version);
@@ -156,14 +156,9 @@ export default class Instance extends EventEmitter {
 
 		await createDir(this.modsPath, { recursive: true });
 
-		const path = `${link ? this.voxura.linkedPath : this.modsPath}/${name}`;
+		const path = `${this.modsPath}/${name}`;
 		const download = new Download('game_mod', [mod.displayName, mod.source.id], this.voxura.downloader);
 		await download.download(url, path);
-		
-		if (link)
-			await createSymlink(path, `${this.modsPath}/${name}`).catch(err => {
-				throw new SymlinkError('symlink failure', { cause: err });
-			});
 
 		const modData = await invokeTauri<RustMod>('read_mod', { path });
 		await getStoredValue<VoxuraStore["projects"]>('projects', {}).then(projects => {
@@ -328,7 +323,6 @@ export default class Instance extends EventEmitter {
 
 export class CompatibilityError extends Error {}
 export class DependencyError extends Error {}
-export class SymlinkError extends Error {}
 export class LaunchError extends Error {
 	public readonly extraData?: any[]
 	public constructor(message: string, extraData?: any[]) {

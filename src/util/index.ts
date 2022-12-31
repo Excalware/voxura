@@ -45,10 +45,6 @@ export function getMD5Hash(filePath: string): Promise<string> {
 	return invokeTauri('get_file_md5', { path: filePath });
 };
 
-export function createSymlink(original: string, link: string): Promise<string> {
-	return invokeTauri('create_sym_link', { original, link });
-};
-
 export function mavenAsArray(maven: string, nativeString?: string, forceExt?: string): string[] {
     const pathSplit = maven.split(':');
     const fileName = pathSplit[3] ? `${pathSplit[2]}-${pathSplit[3]}` : pathSplit[2];

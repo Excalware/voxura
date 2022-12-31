@@ -271,8 +271,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 		request_microsoft_code,
 		
 		cmd::storage_set,
-		cmd::storage_get,
-		cmd::create_sym_link
+		cmd::storage_get
     ])
     .build()
 }

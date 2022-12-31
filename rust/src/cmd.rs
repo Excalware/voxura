@@ -1,3 +1,7 @@
+use std::io::Write;
+use std::fs::File;
+use std::path::Path;
+use zip::write::FileOptions;
 use tauri::Runtime;
 use super::{ storage };
 use serde_json::{ Value };
@@ -13,6 +17,9 @@ pub fn storage_get<R: Runtime>(app: tauri::AppHandle<R>, key: String, default: V
 }
 
 #[tauri::command]
-pub fn create_sym_link(original: String, link: String) -> Result<(), String> {
-	symlink::symlink_file(original, link).map_err(|x| x.to_string())
+pub fn export_instance(files: Vec<String>, out: String) {
+	if let Ok(file) = File::create(out) {
+		let mut zip = zip::ZipWriter::new(file);
+		
+	}
 }
