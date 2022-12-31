@@ -8,6 +8,7 @@ export interface DefaultInstanceStoreData extends InstanceStoreData {
     dates: [number, number, number?]
 	category: string
     components: ComponentJson[]
+	totalPlayTime: number
     gameResolution: [number, number]
     memoryAllocation: number
 }
@@ -18,6 +19,7 @@ export default class DefaultInstanceStore extends Store {
 		category: t('mdpkm:instance_category.default'),
         storeType: InstanceStoreType.Default,
         components: [],
+		totalPlayTime: 0,
         gameResolution: [800, 600],
         memoryAllocation: 2
     };
@@ -70,6 +72,13 @@ export default class DefaultInstanceStore extends Store {
     }
     public set dateLaunched(value: number | undefined) {
         this.dates[2] = value;
+    }
+
+	public get playTime() {
+        return this.data.totalPlayTime;
+    }
+    public set playTime(value: number) {
+        this.data.totalPlayTime = value;
     }
 
     private get dates() {

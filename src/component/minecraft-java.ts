@@ -292,6 +292,7 @@ export default class MinecraftJava extends GameComponent {
 		if (!java)
 			throw new Error('where is java');
 
+		const launchTime = Date.now();
 		const command = createCommand(await java.getBinaryPath(), [
 			...jvmArgs,
 			manifest.mainClass,
@@ -300,6 +301,13 @@ export default class MinecraftJava extends GameComponent {
 			.on('close', data => {
 				console.log('command closed:', data.code, data.signal);
 				this.instance.setState(InstanceState.None);
+
+				const { playTime } = this.instance.store;
+				if (typeof playTime !== 'number' || isNaN(playTime))
+					this.instance.store.playTime = Date.now() - launchTime;
+				else
+					this.instance.store.playTime += Date.now() - launchTime;
+				this.instance.store.save();
 			})
 			.on('error', error => {
 				console.log('command error:', error);
