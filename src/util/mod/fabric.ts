@@ -26,7 +26,7 @@ export interface FabricMetadata {
 }
 export default class FabricMod extends Mod {
     public dependencies = [{
-		id: ['fabric'],
+		id: ['fabric', 'quilt'],
 		versionRange: '*'
 	}]
     declare public readonly metadata?: FabricMetadata
