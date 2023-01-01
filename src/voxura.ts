@@ -28,7 +28,7 @@ export class Voxura {
 	public logger: Logger<unknown>;
     public config: VoxuraConfig;
     public rootPath: string;
-    public platforms: Record<string, Platform>;
+    public platforms: Record<string, Platform<any>>;
     public instances!: InstanceManager;
     public downloader: Downloader;
 
@@ -54,11 +54,11 @@ export class Voxura {
 		this.logger.info('initialized');
 	}
 
-    public addPlatform(platform: Platform) {
+    public addPlatform(platform: Platform<any>) {
         this.platforms[platform.id] = platform;
     }
 
-    public getPlatform(id: string): Platform {
+    public getPlatform(id: string): Platform<any> {
         return this.platforms[id];
     }
 

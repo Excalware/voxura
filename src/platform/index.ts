@@ -1,10 +1,9 @@
-import type Mod from './mod';
-import type Project from './project';
-export default abstract class Platform {
+import type { Mod } from './mod';
+export default abstract class Platform<T> {
     public static id: string;
 
-	public abstract getMod(id: string): Promise<Mod>
-	public abstract getProject(id: string): Promise<Project>
+	public abstract getMod(id: string): Promise<T & Mod>
+	public abstract getProject(id: string): Promise<T>
 
     public abstract search(query: string, options: {
         limit?: number,
@@ -15,7 +14,7 @@ export default abstract class Platform {
         categories?: string[],
         projectType?: string
     }): Promise<{
-        hits: Project[],
+        hits: T[],
         limit: number,
         offset: number,
         total_hits: number
@@ -29,7 +28,7 @@ export default abstract class Platform {
         categories?: string[],
         projectType?: string
     }): Promise<{
-        hits: Mod[],
+        hits: (T & Mod)[],
         limit: number,
         offset: number,
         total_hits: number
@@ -39,5 +38,6 @@ export default abstract class Platform {
         return (<typeof Platform>this.constructor).id;
     }
 
+	public abstract get baseUserURL(): string
 	public abstract get baseProjectURL(): string
 };

@@ -1,43 +1,39 @@
 import Platform from '.';
-export default abstract class Project {
+import type Instance from '../instance';
+export enum ProjectSide {
+    Client,
+    Server,
+    Universal,
+    Unknown
+}
+export default abstract class Project<T, P extends Platform<unknown>> {
     public id: string;
-    public source: Platform;
-    protected readonly data: any;
-    public constructor(id: string, data: any, source: Platform) {
+    public source: P;
+    protected readonly data: T;
+    public constructor(id: string, data: any, source: P) {
         this.id = id;
         this.data = data;
         this.source = source;
     }
 
+	public abstract getSide(): ProjectSide
+	public abstract getLatestVersion(instance: Instance): Promise<void>
+
 	public abstract getVersions(): Promise<any[]>
 
-    public get displayName(): string {
-        return this.data.title ?? this.data.name ?? this.slug;
-    }
+    public abstract get displayName(): string
 
-    public get summary(): string {
-        return this.data.synopsis ?? this.data.description ?? this.data.summary;
-    }
+    public abstract get summary(): string
 
-    public get author(): string {
-        return this.data.author ?? this.data.authors?.[0]?.name;
-    }
+    public abstract get author(): string
 
-    public get slug(): string {
-        return this.data.slug;
-    }
+    public abstract get slug(): string
 
-    public get downloads(): number {
-        return this.data.downloads ?? this.data.downloadCount ?? this.data.installs;
-    }
+    public abstract get downloads(): number | undefined
 
-    public get website(): string {
-        return this.data.website_url;
-    }
+    public abstract get website(): string
 
-    public get webIcon(): string {
-        return this.data.icon_url ?? this.data.logo?.url ?? this.data.art?.find((a: any) => a.type === 'square')?.url;
-    }
+    public abstract get webIcon(): string | undefined
 
     public get isExplict(): boolean {
         return false;
