@@ -1,6 +1,5 @@
 import type Platform from '../../platform';
 import type { Buffer } from 'buffer';
-import type { Dependencies } from '../../component';
 export default abstract class Mod {
 	public md5: string
     public path: string
@@ -8,7 +7,7 @@ export default abstract class Mod {
 	public source?: Platform
     public fileName: string
     public metadata?: any
-    public dependencies: Dependencies = []
+    public abstract dependencies: ModDependency[]
 
     constructor(name: string, filePath: string, md5: string) {
         this.fileName = name;
@@ -39,4 +38,13 @@ export default abstract class Mod {
     public get base64Icon() {
         return this.icon?.toString('base64');
     }
+}
+
+export interface ModDependency {
+	id: string[]
+	type: ModDependencyType
+	versionRange: string
+}
+export enum ModDependencyType {
+	Component
 }

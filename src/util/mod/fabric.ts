@@ -1,4 +1,4 @@
-import Mod from './';
+import Mod, { ModDependency, ModDependencyType } from '.';
 export interface FabricMetadata {
     schemaVersion: number
 
@@ -25,8 +25,9 @@ export interface FabricMetadata {
     custom?: Record<string, any>
 }
 export default class FabricMod extends Mod {
-    public dependencies = [{
+    public dependencies: ModDependency[] = [{
 		id: ['fabric', 'quilt'],
+		type: ModDependencyType.Component,
 		versionRange: '*'
 	}]
     declare public readonly metadata?: FabricMetadata

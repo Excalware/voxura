@@ -12,6 +12,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use zip::ZipArchive;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use flate2::read::GzDecoder;
@@ -41,7 +42,7 @@ fn real_read_mod<R: Runtime>(app_handle: tauri::AppHandle<R>, path: &Path) -> Re
 	let projects = storage::storage_get(app_handle, "projects".into(), serde_json::Value::Object(Map::new()));
 	match File::open(path.canonicalize().map_err(|x| x.to_string())?) {
 		Ok(file) => {
-			match zip::ZipArchive::new(file) {
+			match ZipArchive::new(file) {
 				Ok(mut archive) => {
 					let mut data = Mod {
 						md5: get_md5_hash(path)?,
@@ -63,24 +64,26 @@ fn real_read_mod<R: Runtime>(app_handle: tauri::AppHandle<R>, path: &Path) -> Re
 						}
 					}
 
-					if data.meta.is_none() || data.icon.is_none() {
-						for i in 0..archive.len() {
-							if let Ok(mut file2) = archive.by_index(i) {
-								let name = file2.name().to_string();
-								if !name.contains("/") || name.contains("META-INF") {
-									if data.meta.is_none() && (name == "fabric.mod.json" || name.contains("mods.toml")) {
-										let mut buf = String::new();
-										file2.read_to_string(&mut buf).unwrap();
+					if data.meta.is_none() {
+						for name in vec!["quilt.mod.json", "fabric.mod.json", "META-INF/mods.toml"] {
+							if let Ok(mut file) = archive.by_name(&name) {
+								let mut string = String::new();
+								file.read_to_string(&mut string).unwrap();
 
-										data.meta = Some(buf);
-										data.meta_name = Some(name);
-									} else if data.icon.is_none() && (name == "icon.png" || name == "logo.png") {
-										let mut buf = Vec::new();
-										file2.read_to_end(&mut buf).unwrap();
+								data.meta = Some(string);
+								data.meta_name = Some(name.to_string());
+								break;
+							}
+						}
+					}
+					if data.icon.is_none() {
+						for name in vec!["icon.png", "logo.png"] {
+							if let Ok(mut file) = archive.by_name(&name) {
+								let mut buffer = vec![];
+								file.read_to_end(&mut buffer).unwrap();
 
-										data.icon = Some(buf);
-									}
-								}
+								data.icon = Some(buffer);
+								break;
 							}
 						}
 					}

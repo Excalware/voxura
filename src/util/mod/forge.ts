@@ -1,12 +1,11 @@
 import toml from 'toml';
 
-import Mod from './';
-export interface ForgeMetadata {
-    
-}
+import Mod, { ModDependency, ModDependencyType } from '.';
+export interface ForgeMetadata {}
 export default class ForgeMod extends Mod {
-    public dependencies = [{
+    public dependencies: ModDependency[] = [{
 		id: ['forge'],
+		type: ModDependencyType.Component,
 		versionRange: '*'
 	}]
     constructor(name: string, filePath: string, md5: string, metadata: string) {

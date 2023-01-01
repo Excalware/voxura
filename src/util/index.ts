@@ -5,11 +5,12 @@ import { InvokeArgs } from '@tauri-apps/api/tauri';
 import { exists, FsOptions, writeFile, readTextFile } from '@tauri-apps/api/fs';
 
 import Mod from './mod';
+import QuiltMod from './mod/quilt';
 import ForgeMod from './mod/forge';
 import FabricMod from './mod/fabric';
 import UnknownMod from './mod/unknown';
+import { PLATFORM } from './constants';
 import type { RustMod } from '../instance';
-import { PLATFORM, MINECRAFT_LIBRARIES_URL } from './constants';
 
 const isWindows = PLATFORM === 'win32';
 const cmdProgram = isWindows ? 'powershell' : 'sh';
@@ -64,13 +65,19 @@ export function mavenAsString(maven: string, nativeString?: string, forceExt?: s
 };
 
 export function getModByFile({ md5, name, icon, path, meta, meta_name }: RustMod): Mod {
-    if (meta_name === 'fabric.mod.json') {
+    if (meta_name === 'quilt.mod.json') {
+        const mod = new QuiltMod(name, path, md5, meta);
+        if (icon)
+            mod.icon = Buffer.from(icon);
+        
+        return mod;
+    } else if (meta_name === 'fabric.mod.json') {
         const mod = new FabricMod(name, path, md5, meta);
         if (icon)
             mod.icon = Buffer.from(icon);
         
         return mod;
-    } if (meta_name?.includes('mods.toml')) {
+    } else if (meta_name?.includes('mods.toml')) {
         const mod = new ForgeMod(name, path, md5, meta);
         if (icon)
             mod.icon = Buffer.from(icon);
