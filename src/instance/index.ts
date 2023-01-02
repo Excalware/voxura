@@ -7,15 +7,16 @@ import { exists, createDir, removeDir, removeFile, readBinaryFile } from '@tauri
 
 import type Mod from '../util/mod';
 import { Download } from '../downloader';
+import type Project from '../platform/project';
 import EventEmitter from '../util/eventemitter';
 import MinecraftJava from '../component/minecraft-java';
-import type PlatformMod from '../platform/mod';
 import { InstanceState } from '../types';
 import VersionedComponent from '../component/versioned-component';
 import mdpkmInstanceConfig from './store/mdpkm';
 import type InstanceManager from './manager';
 import DefaultInstanceStore from './store/default';
 import { Voxura, VoxuraStore } from '../voxura';
+import type { Mod as PlatformMod } from '../platform/mod';
 import { getStoredValue, setStoredValue } from '../storage';
 import InstanceStore, { InstanceStoreType } from './store';
 import InstanceComponent, { ComponentType } from '../component';
@@ -141,7 +142,7 @@ export default class Instance extends EventEmitter {
 		return this.store.components.find(c => c instanceof type) as any;
 	}
 
-    public async installMod(mod: PlatformMod): Promise<void> {
+    public async installMod(mod: Project<any, any> & PlatformMod): Promise<void> {
         console.log(mod);
         const version = await mod.getLatestVersion(this);
         console.log('latest version:', version);
@@ -161,15 +162,19 @@ export default class Instance extends EventEmitter {
 		await download.download(url, path);
 
 		const modData = await invokeTauri<RustMod>('read_mod', { path });
-		await getStoredValue<VoxuraStore["projects"]>('projects', {}).then(projects => {
+		await getStoredValue<VoxuraStore["projects"]>('projects', {}).then(async projects => {
+			const icon = mod.webIcon ? await fetch(mod.webIcon, {
+				method: 'GET'
+			}).then(r => r.arrayBuffer()).then(a => [...new Uint8Array(a)]) : modData.icon;
 			projects[modData.md5] = {
 				id: mod.id,
 				version: version.id,
 				platform: mod.source.id,
-				cached_icon: modData.icon,
+				cached_icon: icon,
 				cached_metadata: modData.meta,
 				cached_metaname: modData.meta_name
 			};
+			modData.icon = icon;
 			return setStoredValue('projects', projects);
 		});
 
@@ -238,8 +243,11 @@ export default class Instance extends EventEmitter {
             }).then(m => m.map(getModByFile));
 
 		const projects = await getStoredValue<VoxuraStore["projects"]>('projects', {});
-		for (const mod of this.modifications)
-			mod.source = this.voxura.getPlatform(projects[mod.md5]?.platform);
+		for (const mod of this.modifications) {
+			const project = projects[mod.md5];
+			if (project)
+				mod.source = this.voxura.getPlatform(project.platform);
+		}
 
         this.readingMods = false;
         this.hasReadMods = true;

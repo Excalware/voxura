@@ -4,7 +4,7 @@ export default abstract class Mod {
 	public md5: string
     public path: string
 	public icon?: Buffer
-	public source?: Platform
+	public source?: Platform<any>
     public fileName: string
     public metadata?: any
     public abstract dependencies: ModDependency[]
@@ -32,7 +32,8 @@ export default abstract class Mod {
     }
 
     public get webIcon() {
-        return this.icon ? `data:image/png;base64,${this.base64Icon}` : null;
+		const base64 = this.base64Icon;
+        return base64 ? `data:${getImageFormat(base64)};base64,${base64}` : null;
     }
 
     public get base64Icon() {
@@ -47,4 +48,13 @@ export interface ModDependency {
 }
 export enum ModDependencyType {
 	Component
+}
+
+export const IMAGE_FORMATS: Record<string, string> = {
+	'/9j': 'image/jpeg',
+	'iVB': 'image/png',
+	'PHN': 'image/svg+xml'
+}
+export function getImageFormat(base64: string) {
+	return IMAGE_FORMATS[base64.substring(0, 3)];
 }

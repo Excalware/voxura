@@ -17,7 +17,7 @@ export default abstract class Project<T, P extends Platform<unknown>> {
     }
 
 	public abstract getSide(): ProjectSide
-	public abstract getLatestVersion(instance: Instance): Promise<void>
+	public abstract getLatestVersion(instance: Instance): Promise<any>
 
 	public abstract getVersions(): Promise<any[]>
 
