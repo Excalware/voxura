@@ -30,6 +30,7 @@ export default abstract class Project<T, P extends Platform<unknown>> {
     public abstract get slug(): string
 
     public abstract get downloads(): number | undefined
+	public abstract get followers(): number | undefined
 
     public abstract get website(): string
 

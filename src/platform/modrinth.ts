@@ -200,6 +200,9 @@ export class ModrinthProject extends Project<SearchResult, Modrinth> {
     public get downloads(): number {
         return this.data.downloads;
     }
+	public get followers(): number {
+        return this.data.follows;
+    }
 
     public get website(): string {
         return PROJECT_BASE + this.id;
