@@ -12,11 +12,12 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::thread;
 use zip::ZipArchive;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use flate2::read::GzDecoder;
-use serde_json::{ Map };
+use serde_json::{ Map, Value };
 
 #[derive(Clone, serde::Serialize)]
 pub struct Mod {
@@ -38,32 +39,32 @@ pub struct CachedProject {
 	cached_metadata: Option<String>
 }
 
-fn real_read_mod<R: Runtime>(app_handle: tauri::AppHandle<R>, path: &Path) -> Result<Mod, String> {
-	let projects = storage::storage_get(app_handle, "projects".into(), serde_json::Value::Object(Map::new()));
+// the worst thing you've ever seen
+fn real_read_mod(path: &Path, projects: &Map<String, Value>) -> Result<Mod, String> {
 	match File::open(path.canonicalize().map_err(|x| x.to_string())?) {
 		Ok(file) => {
+			let mut data = Mod {
+				md5: get_md5_hash(path)?,
+				name: path.file_name().unwrap().to_str().unwrap().to_string(),
+				path: path.to_str().unwrap().to_string(),
+				icon: None,
+				meta: None,
+				meta_name: None
+			};
+			match projects.get(&data.md5) {
+				Some(x) => {
+					let x: CachedProject = serde_json::from_value(x.to_owned()).unwrap();
+					data.icon = x.cached_icon.clone();
+					data.meta = x.cached_metadata.clone();
+					data.meta_name = x.cached_metaname.clone();
+				},
+				_ => ()
+			}
+			if data.icon.is_some() && data.meta.is_some() && data.meta_name.is_some() {
+				return Ok(data);
+			}
 			match ZipArchive::new(file) {
 				Ok(mut archive) => {
-					let mut data = Mod {
-						md5: get_md5_hash(path)?,
-						name: path.file_name().unwrap().to_str().unwrap().to_string(),
-						path: path.to_str().unwrap().to_string(),
-						icon: None,
-						meta: None,
-						meta_name: None
-					};
-					if let Ok(projects) = projects {
-						match projects.get(&data.md5) {
-							Some(x) => {
-								let x: CachedProject = serde_json::from_value(x.to_owned()).unwrap();
-								data.icon = x.cached_icon.clone();
-								data.meta = x.cached_metadata.clone();
-								data.meta_name = x.cached_metaname.clone();
-							},
-							_ => ()
-						}
-					}
-
 					if data.meta.is_none() {
 						for name in vec!["quilt.mod.json", "fabric.mod.json", "META-INF/mods.toml"] {
 							if let Ok(mut file) = archive.by_name(&name) {
@@ -98,21 +99,27 @@ fn real_read_mod<R: Runtime>(app_handle: tauri::AppHandle<R>, path: &Path) -> Re
 
 #[tauri::command]
 fn read_mod<R: Runtime>(app_handle: tauri::AppHandle<R>, path: String) -> Result<Mod, String> {
-	real_read_mod(app_handle.clone(), Path::new(&path))
+	let projects = storage::storage_get(app_handle, "projects".into(), serde_json::Value::Object(Map::new())).unwrap().as_object().unwrap().to_owned();
+	real_read_mod(Path::new(&path), &projects)
 }
 
 #[tauri::command]
 fn read_mods<R: Runtime>(app_handle: tauri::AppHandle<R>, path: String) -> Vec<Mod> {
-    let mut mods = vec![];
+	let mut mods = vec![];
+	let mut threads = vec![];
 	if let Ok(dir) = fs::read_dir(path) {
+		let projects = storage::storage_get(app_handle, "projects".into(), serde_json::Value::Object(Map::new())).unwrap().as_object().unwrap().to_owned();
 		for entry in dir {
+			let projects = projects.clone();
 			if let Ok(entry) = entry {
-				match real_read_mod(app_handle.clone(), entry.path().as_path()) {
-					Ok(x) => mods.push(x),
-					Err(x) => println!("{}", x)
-				}
+				threads.push(thread::spawn(move ||
+					real_read_mod(entry.path().as_path(), &projects).unwrap()
+				));
 			}
 		}
+	}
+	for thread in threads {
+		mods.push(thread.join().unwrap());
 	}
 
     mods
