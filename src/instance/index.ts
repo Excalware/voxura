@@ -3,6 +3,7 @@ import { Buffer } from 'buffer';
 import { satisfies } from 'semver';
 import type { Child } from '@tauri-apps/api/shell';
 import { v4 as uuidv4 } from 'uuid';
+import { fetch as fetch2, ResponseType } from '@tauri-apps/api/http';
 import { exists, createDir, removeDir, removeFile, readBinaryFile } from '@tauri-apps/api/fs';
 
 import type Mod from '../util/mod';
@@ -163,9 +164,13 @@ export default class Instance extends EventEmitter {
 
 		const modData = await invokeTauri<RustMod>('read_mod', { path });
 		await getStoredValue<VoxuraStore["projects"]>('projects', {}).then(async projects => {
-			const icon = mod.webIcon ? await fetch(mod.webIcon, {
-				method: 'GET'
-			}).then(r => r.arrayBuffer()).then(a => [...new Uint8Array(a)]) : modData.icon;
+			let icon = modData.icon;
+			const { webIcon } = mod;
+			if (webIcon)
+				if (webIcon.startsWith('http'))
+					icon = await fetch2<number[]>(webIcon, { method: 'GET', responseType: ResponseType.Binary }).then(r => r.data);
+				else
+					icon = await fetch(webIcon).then(r => r.arrayBuffer()).then(a => [...new Uint8Array(a)]);
 			projects[modData.md5] = {
 				id: mod.id,
 				version: version.id,
