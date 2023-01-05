@@ -53,6 +53,14 @@ export default class FabricLoader extends MinecraftClientExtension {
 		return this.id;
 	}
 
+	public getJvmArguments() {
+		return this.getManifest().then(m => m.arguments.jvm);
+	}
+
+	public getGameArguments() {
+		return this.getManifest().then(m => m.arguments.game);
+	}
+
 	protected get apiBase(): string {
 		return (<typeof FabricLoader>this.constructor).apiBase;
 	}

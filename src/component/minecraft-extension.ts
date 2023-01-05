@@ -1,13 +1,14 @@
 import { ComponentType } from '.';
+import type { Argument } from './minecraft-java';
 import VersionedComponent from './versioned-component';
 export default abstract class MinecraftExtension extends VersionedComponent {
 	public static type = ComponentType.Loader
 
-	public getJvmArguments() {
+	public getJvmArguments(): Promise<Argument[]> {
 		return Promise.resolve([]);
 	}
 
-	public getGameArguments() {
+	public getGameArguments(): Promise<Argument[]> {
 		return Promise.resolve([]);
 	}
 

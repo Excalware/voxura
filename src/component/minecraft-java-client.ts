@@ -218,7 +218,9 @@ export default class MinecraftJavaClient extends MinecraftJava {
 		}
 		for (const component of this.instance.store.components)
 			if (component instanceof MinecraftClientExtension)
-				parsed.push(...await component.getJvmArguments());
+				this.parseArguments(await component.getJvmArguments(), parsed, arg =>
+					this.parseJvmArgument(arg, manifest, classPaths)
+				);
 			else if (component instanceof JavaAgent)
 				parsed.push(`-javaagent:${await component.getFilePath()}`);
 
@@ -248,7 +250,9 @@ export default class MinecraftJavaClient extends MinecraftJava {
 			this.parseArguments(args, parsed, arg => this.parseGameArgument(arg, manifest));
 		for (const component of this.instance.store.components)
 			if (component instanceof MinecraftClientExtension)
-				parsed.unshift(...await component.getGameArguments());
+				this.parseArguments(await component.getGameArguments(), parsed, 
+					arg => this.parseGameArgument(arg, manifest)
+				);
 
 		return parsed;
 	}
