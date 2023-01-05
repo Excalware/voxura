@@ -33,15 +33,17 @@ export default class Modrinth extends Platform<ModrinthProject> {
         offset?: number,
         loaders?: string[],
         versions?: string[],
-        categories?: string[],
-        projectType?: string
+        categories?: string[]
     } = {}): Promise<{
         hits: ModrinthMod[],
         limit: number,
         offset: number,
         total_hits: number
     }> {
-        return this.searchRaw(query, options).then(data => ({
+        return this.searchRaw(query, {
+			...options,
+			projectType: 'mod'
+		}).then(data => ({
             ...data,
             hits: data.hits.map(h => new ModrinthMod(h.project_id, h, this))
         }));
@@ -63,25 +65,27 @@ export default class Modrinth extends Platform<ModrinthProject> {
     }> {
         const {
             limit = 20,
-            facets,
             offset = 0,
+			facets = [],
             loaders,
             versions,
             categories,
             projectType
         } = options;
+		const facetss = [
+			...facets,
+			categories?.filter(v => v).map(cat => `categories:${cat}`),
+			loaders?.filter(v => v).map(cat => `categories:${cat}`),
+			versions?.filter(v => v).map(ver => `versions:${ver}`),
+			projectType ? [`project_type:${projectType}`] : undefined
+		].filter(v => v);
+		console.log(facetss);
         return fetch<any>(`${API_BASE}/search`, {
             query: {
                 query,
                 limit: limit.toString(),
                 offset: offset.toString(),
-                facets: facets ? JSON.stringify([
-                    ...facets,
-                    categories?.filter(v => v).map(cat => `categories:${cat}`),
-                    loaders?.filter(v => v).map(cat => `categories:${cat}`),
-                    versions?.filter(v => v).map(ver => `versions:${ver}`),
-                    ...[projectType && [`project_type:${projectType}`]]
-                ].filter(v => v)) : undefined
+                facets: JSON.stringify(facetss)
             },
             method: 'GET',
             responseType: ResponseType.JSON
