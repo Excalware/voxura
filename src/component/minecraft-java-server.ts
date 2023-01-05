@@ -1,12 +1,10 @@
 import { exists } from '@tauri-apps/api/fs';
 
-import JavaAgent from './java-agent';
 import { Download } from '../downloader';
 import JavaComponent from './java-component';
 import MinecraftJava from './minecraft-java';
 import { InstanceType } from '../instance';
 import { InstanceState } from '../types';
-import { createCommand } from '../util';
 import MinecraftServerExtension from './minecraft-server-extension';
 export default class MinecraftJavaServer extends MinecraftJava {
 	public static readonly id: string = 'minecraft-java-server'
@@ -41,11 +39,11 @@ export default class MinecraftJavaServer extends MinecraftJava {
 			throw new Error('where is java');
 
 		const launchTime = Date.now();
-		const command = createCommand(await java.getBinaryPath(), [
+		const command = (await java.launch([
 			...jvmArgs,
 			components[0]?.jarPath ?? this.jarPath,
 			...gameArgs
-		], this.instance.path)
+		]))
 			.on('close', data => {
 				console.log('command closed:', data.code, data.signal);
 				this.instance.setState(InstanceState.None);
@@ -80,9 +78,7 @@ export default class MinecraftJavaServer extends MinecraftJava {
 		const parsed: string[] = [];
 		for (const component of this.instance.store.components)
 			if (component instanceof MinecraftServerExtension)
-				parsed.push(...await component.getJvmArguments());
-			else if (component instanceof JavaAgent)
-				parsed.push(`-javaagent:${await component.getFilePath()}`);
+				this.parseArguments(await component.getJvmArguments(), parsed, a => a);
 
 		// TODO: implement a min-max range
 		const memory = this.instance.store.memoryAllocation * 1000;
@@ -97,7 +93,7 @@ export default class MinecraftJavaServer extends MinecraftJava {
 		const parsed: string[] = [];
 		for (const component of this.instance.store.components)
 			if (component instanceof MinecraftServerExtension)
-				parsed.unshift(...await component.getGameArguments());
+				this.parseArguments(await component.getGameArguments(), parsed, a => a);
 
 		return parsed;
 	}

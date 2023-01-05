@@ -1,9 +1,11 @@
 import { fetch } from '@tauri-apps/api/http';
 import { exists } from '@tauri-apps/api/fs';
 
+import JavaAgent from './java-agent';
 import { Download } from '../downloader';
 import JavaComponent from './java-component';
 import { ComponentType } from '.';
+import { createCommand } from '../util';
 import { ARCH, PLATFORM } from '../util/constants';
 
 const JAVA_BINARY = PLATFORM === 'win32' ? 'javaw.exe' : 'java';
@@ -17,6 +19,14 @@ const systemArch = {
 export default class JavaTemurin extends JavaComponent {
 	public static id: string = 'java-temurin'
 	public static type = ComponentType.Library
+
+	public async launch(args: string[]) {
+		const launchArgs = [...args];
+		for (const component of this.instance.store.components)
+			if (component instanceof JavaAgent)
+				launchArgs.push(`-javaagent:${await component.getFilePath()}`);
+		return createCommand(await this.getBinaryPath(), launchArgs, this.instance.path);
+	}
 
 	public async getBinaryPath() {
 		const path = `${this.path}/jdk-${this.version}/bin/${JAVA_BINARY}`;

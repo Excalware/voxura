@@ -1,14 +1,13 @@
 import pmap from 'p-map-browser';
 import { exists } from '@tauri-apps/api/fs';
 
-import JavaAgent from './java-agent';
 import JavaComponent from './java-component';
 import { InstanceType } from '../instance';
 import { InstanceState } from '../types';
 import MinecraftClientExtension from './minecraft-client-extension';
 import { PLATFORM, VOXURA_VERSION } from '../util/constants';
 import { TaskType, Download, DownloadTask, DownloadState } from '../downloader';
-import { filesExist, invokeTauri, readJsonFile, createCommand, mavenAsString } from '../util';
+import { filesExist, invokeTauri, readJsonFile, mavenAsString } from '../util';
 import MinecraftJava, { parseRule, JavaAssetIndex, convertPlatform, MinecraftJavaLibrary, MinecraftJavaManifest } from './minecraft-java';
 export default class MinecraftJavaClient extends MinecraftJava {
 	public static readonly id: string = 'minecraft-java-vanilla'
@@ -57,11 +56,11 @@ export default class MinecraftJavaClient extends MinecraftJava {
 			throw new Error('where is java');
 
 		const launchTime = Date.now();
-		const command = createCommand(await java.getBinaryPath(), [
+		const command = (await java.launch([
 			...jvmArgs,
 			manifest.mainClass,
 			...gameArgs
-		], this.instance.path)
+		]))
 			.on('close', data => {
 				console.log('command closed:', data.code, data.signal);
 				this.instance.setState(InstanceState.None);
@@ -221,8 +220,6 @@ export default class MinecraftJavaClient extends MinecraftJava {
 				this.parseArguments(await component.getJvmArguments(), parsed, arg =>
 					this.parseJvmArgument(arg, manifest, classPaths)
 				);
-			else if (component instanceof JavaAgent)
-				parsed.push(`-javaagent:${await component.getFilePath()}`);
 
 		// TODO: implement a min-max range
 		const memory = this.instance.store.memoryAllocation * 1000;
