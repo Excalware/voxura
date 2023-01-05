@@ -2,8 +2,9 @@ import { fetch } from '@tauri-apps/api/http';
 
 import { Download } from '../downloader';
 import type Platform from '../platform';
+import { InstanceType } from '../instance';
 import { ComponentType } from '.';
-import MinecraftExtension from './minecraft-extension';
+import MinecraftClientExtension from './minecraft-client-extension';
 import { fileExists, readJsonFile } from '../util';
 import type { MinecraftJavaManifest } from './minecraft-java';
 
@@ -18,9 +19,10 @@ export type FabricVersionsResponse = {
 	}[],
 	mapping: {}[]
 };
-export default class FabricLoader extends MinecraftExtension {
-	public static readonly id: string = 'fabric';
-	public static type = ComponentType.Loader;
+export default class FabricLoader extends MinecraftClientExtension {
+	public static readonly id: string = 'fabric'
+	public static type = ComponentType.Loader
+	public static instanceTypes = [InstanceType.Client]
 
 	public static async getVersions() {
 		return fetch<FabricVersionsResponse>(`${this.apiBase}/versions`).then(({ data }) =>
@@ -45,7 +47,7 @@ export default class FabricLoader extends MinecraftExtension {
 		return readJsonFile<MinecraftJavaManifest>(manifestPath);
 	}
 
-	public getPlatformId(platform: Platform) {
+	public getPlatformId(platform: Platform<any>) {
 		if (platform.id === 'curseforge')
 			return 'Fabric';
 		return this.id;
@@ -57,4 +59,4 @@ export default class FabricLoader extends MinecraftExtension {
 	protected static get apiBase(): string {
 		return 'https://meta.fabricmc.net/v2';
 	}
-};
+}

@@ -1,12 +1,12 @@
 import type Instance from '../instance';
 import type { ComponentVersions } from '../types';
 import Component, { ComponentData, ComponentJson } from '.';
-export type VersionedComponentData = ComponentData & {
-	version: string;
-};
-export type VersionedComponentJson = ComponentJson & {
-	version: string;
-};
+export interface VersionedComponentData extends ComponentData {
+	version: string
+}
+export interface VersionedComponentJson extends ComponentJson {
+	version: string
+}
 export default abstract class VersionedComponent extends Component<VersionedComponentJson> {
 	public version: string = '1.0.0'
 	public constructor(instance: Instance, data: VersionedComponentJson) {
@@ -14,7 +14,7 @@ export default abstract class VersionedComponent extends Component<VersionedComp
 		this.version = data.version;
 	}
 
-	public static getVersions(): Promise<ComponentVersions> {
+	public static getVersions(...args: any[]): Promise<ComponentVersions> {
 		throw new Error(`${this.id} does not implement getVersions`)
 	}
 	public get getVersions() {

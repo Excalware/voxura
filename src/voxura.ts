@@ -86,16 +86,26 @@ export class Voxura {
 	public get linkedPath() {
 		return this.rootPath + '/linked';
 	}
-};
+}
 
 import JavaAgent from './component/java-agent';
 import JavaTemurin from './component/java-temurin';
-import QuiltLoader from './component/minecraft-quilt';
-import FabricLoader from './component/minecraft-fabric';
-import MinecraftJava from './component/minecraft-java';
+import MinecraftPaper from './component/minecraft-paper';
+import MinecraftQuilt from './component/minecraft-quilt';
+import MinecraftFabric from './component/minecraft-fabric';
+import MinecraftJavaServer from './component/minecraft-java-server';
+import MinecraftJavaClient from './component/minecraft-java-client';
 import PlaceholderComponent from './component/placeholder';
 
-export const COMPONENT_MAP: typeof Component<any>[] = [JavaAgent, JavaTemurin, QuiltLoader, FabricLoader, MinecraftJava];
+export const COMPONENT_MAP: typeof Component<any>[] = [
+	MinecraftJavaServer,
+	MinecraftJavaClient,
+	MinecraftPaper,
+	MinecraftQuilt,
+	MinecraftFabric,
+	JavaTemurin,
+	JavaAgent
+]
 export function getComponent(id: string) {
     return COMPONENT_MAP.find(c => c.id === id) ?? PlaceholderComponent;
-};
+}

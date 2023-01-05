@@ -1,19 +1,20 @@
-import type Instance from '../instance';
 import type Platform from '../platform';
+import Instance, { InstanceType } from '../instance';
 export enum ComponentType {
 	Game,
 	Loader,
 	Library
-};
-export type ComponentData = {
+}
+export interface ComponentData {
 
-};
-export type ComponentJson = {
-	id?: string;
-};
+}
+export interface ComponentJson {
+	id?: string
+}
 export default abstract class InstanceComponent<T extends ComponentJson = ComponentJson> {
 	public static readonly id: string
 	public static type: ComponentType
+	public static instanceTypes: InstanceType[] = []
 	public instance: Instance
 	protected data: T
 	constructor(instance: Instance, data: T) {
@@ -43,13 +44,13 @@ export default abstract class InstanceComponent<T extends ComponentJson = Compon
         return `${this.instance.manager.versionsPath}/${this.id}`;
     }
 
-	public getPlatformId(platform: Platform) {
+	public getPlatformId(platform: Platform<any>) {
 		return this.id;
 	}
-};
+}
 
 export type Dependencies = Dependency[]
 export interface Dependency {
-	id: string[],
+	id: string[]
 	versionRange: string
 }

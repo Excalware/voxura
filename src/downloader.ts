@@ -1,23 +1,19 @@
 import { listen } from '@tauri-apps/api/event';
+import type { Logger } from 'tslog';
 import { v4 as uuidv4 } from 'uuid';
 
 import EventEmitter from './util/eventemitter';
 import { invokeTauri } from './util';
 import type { Voxura } from './voxura';
-
-interface DownloadPayload {
-    id: string,
-    total: number,
-    progress: number
-};
-
 export default class Downloader extends EventEmitter {
-	public path: string;
-    public downloads: Download[] = [];
+	public path: string
+	public logger: Logger<unknown>;
+    public downloads: Download[] = []
 
     public constructor(voxura: Voxura) {
         super();
         this.path = voxura.rootPath + '/downloads';
+		this.logger = voxura.logger.getSubLogger({ name: 'downloader' });
 
         listen<DownloadPayload>('download_update', ({ payload }) =>
             this.updateDownloads(this.downloads, payload)
@@ -31,24 +27,29 @@ export default class Downloader extends EventEmitter {
             this.updateDownloads(download.subDownloads, payload);
         }
     }
-};
+}
 
 export enum DownloadState {
 	Pending,
 	Finished,
 	Extracting,
 	Downloading
-};
+}
+export interface DownloadPayload {
+    id: string,
+    total: number,
+    progress: number
+}
 export class Download extends EventEmitter {
-	public id: string;
-	public uuid: string;
-    public total: number = 1;
-	public state: DownloadState = DownloadState.Pending;
-    public parent?: Download;
-    public progress: number = 0;
-	public extraData: any;
-    public subDownloads: Download[] = [];
-    private downloader: Downloader;
+	public id: string
+	public uuid: string
+    public total: number = 1
+	public state: DownloadState = DownloadState.Pending
+    public parent?: Download
+    public progress: number = 0
+	public extraData: any
+    public subDownloads: Download[] = []
+    private downloader: Downloader
     
     constructor(id: string, extraData: any, downloader: Downloader, push: boolean = true) {
         super();
@@ -88,6 +89,8 @@ export class Download extends EventEmitter {
     }
 
 	public download(url: string, path: string) {
+		this.downloader.logger.info('download started:', path, 'from', url);
+
 		this.setState(DownloadState.Downloading);
 		this.downloader.emitEvent('downloadStarted', this);
 		invokeTauri('download_file', { id: this.uuid, url, path });
@@ -96,6 +99,8 @@ export class Download extends EventEmitter {
 	}
 
 	public extract(path: string, target: string) {
+		this.downloader.logger.info('extract started:', path);
+
 		this.setState(DownloadState.Extracting);
 		this.downloader.emitEvent('downloadStarted', this);
 		invokeTauri('extract_archive', { id: this.uuid, path, target });
@@ -138,4 +143,4 @@ export class Download extends EventEmitter {
 
         return total / (this.subDownloads.length + 1);
     }
-};
+}

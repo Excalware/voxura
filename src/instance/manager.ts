@@ -1,10 +1,10 @@
-import { Logger } from 'tslog';
+import type { Logger } from 'tslog';
 import { readDir, createDir } from '@tauri-apps/api/fs';
 
-import Instance from '.';
 import { Voxura } from '../voxura';
 import EventEmitter from '../util/eventemitter';
-import { readJsonFile, writeJsonFile } from '../util';
+import Instance, { InstanceType } from '.';
+import { readJsonFile, writeJsonFile, getInstanceClass } from '../util';
 export interface InstanceManagerStore {
     recent: string[]
 };
@@ -60,7 +60,9 @@ export default class InstanceManager extends EventEmitter {
         for (const entry of entries)
             if (entry.name && entry.children)
                 if (!this.instances.some(i => i.name == entry.name)) {
-                    const instance = new Instance(this, entry.name, entry.path);
+					const store = await readJsonFile<any>(entry.path + '/store.json').catch();
+					const InstanceClass: any = getInstanceClass(store?.type ?? InstanceType.Client);
+                    const instance = new InstanceClass(this, entry.name, entry.path);
                     promises.push(instance.init());
 
                     this.instances.push(instance);
@@ -79,11 +81,12 @@ export default class InstanceManager extends EventEmitter {
         return this.loadInstances();
     }
 
-    public async createInstance(name: string): Promise<Instance> {
+    public async createInstance(name: string, type: InstanceType): Promise<Instance> {
         const path = `${this.path}/${name}`;
         await createDir(path, { recursive: true });
 
-        const instance = new Instance(this, name, path);
+		const InstanceClass: any = getInstanceClass(type);
+        const instance = new InstanceClass(this, name, path);
         await instance.init();
 
         this.instances.push(instance);

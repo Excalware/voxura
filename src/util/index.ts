@@ -10,7 +10,8 @@ import ForgeMod from './mod/forge';
 import FabricMod from './mod/fabric';
 import UnknownMod from './mod/unknown';
 import { PLATFORM } from './constants';
-import type { RustMod } from '../instance';
+import ClientInstance from '../instance/client';
+import Instance, { RustMod, InstanceType } from '../instance';
 
 const isWindows = PLATFORM === 'win32';
 const cmdProgram = isWindows ? 'powershell' : 'sh';
@@ -86,4 +87,8 @@ export function getModByFile({ md5, name, icon, path, meta, meta_name }: RustMod
     }
 
     return new UnknownMod(name, path, md5);
-};
+}
+
+export function getInstanceClass(type: InstanceType): typeof Instance {
+	return ClientInstance;
+}

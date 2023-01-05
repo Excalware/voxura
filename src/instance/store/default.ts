@@ -1,10 +1,11 @@
 import { t } from 'i18next';
 
-import type Instance from '..';
 import { getComponent } from '../../voxura';
 import { ComponentJson } from '../../component';
+import Instance, { InstanceType } from '..';
 import Store, { InstanceStoreType, InstanceStoreData } from '.';
 export interface DefaultInstanceStoreData extends InstanceStoreData {
+	type: InstanceType
     dates: [number, number, number?]
 	category: string
     components: ComponentJson[]
@@ -15,6 +16,7 @@ export interface DefaultInstanceStoreData extends InstanceStoreData {
 export default class DefaultInstanceStore extends Store {
     public type = InstanceStoreType.Default;
     public readonly data: DefaultInstanceStoreData = {
+		type: InstanceType.Client,
         dates: [Date.now(), Date.now()],
 		category: t('mdpkm:instance_category.default'),
         storeType: InstanceStoreType.Default,

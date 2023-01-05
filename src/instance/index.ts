@@ -32,11 +32,8 @@ export interface RustMod {
     meta_name: string
 }
 
-const STORE_CLASS = [
-    DefaultInstanceStore,
-    mdpkmInstanceConfig
-];
-export default class Instance extends EventEmitter {
+export const STORE_CLASS = [DefaultInstanceStore, mdpkmInstanceConfig]
+export default abstract class Instance extends EventEmitter {
     public id: string
     public name: string
     public path: string
@@ -52,6 +49,7 @@ export default class Instance extends EventEmitter {
     public hasReadMods: boolean = false
 	public bannerFormat: string = 'png'
     public modifications: Mod[]
+	public abstract type: InstanceType
     
     public constructor(manager: InstanceManager, name: string, path: string) {
         super();
@@ -342,6 +340,10 @@ export class LaunchError extends Error {
 		super(message);
 		this.extraData = extraData;
 	}
+}
+export enum InstanceType {
+	Client,
+	Server
 }
 
 export const ALLOWED_ICON_FORMATS = ['png', 'gif'];
