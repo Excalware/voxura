@@ -17,7 +17,7 @@ export default abstract class JavaAgent extends Component<JavaAgentJson> {
 
 	private async download() {
 		const download = new Download('java_agent', null, this.instance.voxura.downloader);
-		return download.download(this.url, this.agentPath);
+		return download.download(this.url, this.agentPath).await();
 	}
 
 	public toJSON(): JavaAgentJson {

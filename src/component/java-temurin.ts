@@ -35,9 +35,9 @@ export default class JavaTemurin extends JavaComponent {
 		const { name, link } = data.binaries[0].package;
 		const filePath = `${downloader.path}/${name}`;
 		if (!await exists(filePath))
-			await download.download(link, filePath);
+			await download.download(link, filePath).await();
 
-		return download.extract(this.path, filePath);
+		return download.extract(this.path, filePath).await();
 	}
 
 	public static async getVersions() {

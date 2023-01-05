@@ -23,7 +23,7 @@ export default class MinecraftPaper extends MinecraftServerExtension {
 
 		const split = this.version2;
 		const download = new Download('component_manifest', [this.id, this.version], this.instance.voxura.downloader);
-		await download.download(`${this.apiBase}/projects/${this.projectName}/versions/${split[0]}/builds/${split[1]}`, manifestPath);
+		await download.download(`${this.apiBase}/projects/${this.projectName}/versions/${split[0]}/builds/${split[1]}`, manifestPath).await();
 
 		return readJsonFile<PaperBuild>(manifestPath);
 	}
@@ -37,7 +37,7 @@ export default class MinecraftPaper extends MinecraftServerExtension {
 		const split = this.version2;
 		const manifest = await this.getManifest();
 		const download = new Download('paper', [this.id, this.version], this.instance.voxura.downloader);
-		await download.download(`${this.apiBase}/projects/${this.projectName}/versions/${split[0]}/builds/${split[1]}/downloads/${manifest.downloads.application.name}`, this.jarPath);
+		return download.download(`${this.apiBase}/projects/${this.projectName}/versions/${split[0]}/builds/${split[1]}/downloads/${manifest.downloads.application.name}`, this.jarPath).await();
 	}
 
 	public get jarPath() {

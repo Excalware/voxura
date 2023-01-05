@@ -168,12 +168,12 @@ export default abstract class MinecraftJava extends GameComponent {
 			throw new LaunchError('manifest_download_failed', [this.id, this.version]);
 
 		const download = new Download('minecraft_java_manifest', [version], this.instance.manager.voxura.downloader);
-		await download.download(manifest.url, manifestPath);
+		await download.download(manifest.url, manifestPath).await();
 
 		return readJsonFile<MinecraftJavaManifest>(manifestPath);
 	}
 
-	public abstract installGame(): Promise<void>
+	public abstract install(): Promise<void>
 
 	public abstract launch(): Promise<void>
 

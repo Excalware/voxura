@@ -1,8 +1,8 @@
-export type Callback = (...args: any[]) => void;
+export type Callback = (...args: any[]) => void
 export interface Listener {
-    name: string,
+    name: string
     callback: (...data: any[]) => void
-};
+}
 export default class EventEmitter {
     private listeners: Listener[] = [];
     public emitEvent(name: string, ...data: any[]) {
@@ -21,4 +21,14 @@ export default class EventEmitter {
     public unlistenForEvent(name: string, callback: Callback) {
         this.listeners = this.listeners.filter(l => l.name !== name && l.callback !== callback);
     }
-};
+
+	public awaitEvent(name: string) {
+		return new Promise<void>(resolve => {
+            const callback = () => {
+                this.unlistenForEvent(name, callback);
+                resolve();
+            };
+            this.listenForEvent(name, callback);
+        });
+	}
+}

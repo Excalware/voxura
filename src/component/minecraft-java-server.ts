@@ -12,7 +12,7 @@ export default class MinecraftJavaServer extends MinecraftJava {
 	public static readonly id: string = 'minecraft-java-server'
 	public static instanceTypes = [InstanceType.Server]
 
-	public async installGame() {
+	public async install() {
 		const manifest = await this.getManifest();
 		const server = manifest.downloads.server;
 
@@ -22,7 +22,7 @@ export default class MinecraftJavaServer extends MinecraftJava {
 
 		const path = this.jarPath;
 		if (!await exists(path))
-			await download.download(server.url, path);
+			await download.download(server.url, path).await();
 	}
 
 	public async launch() {
@@ -31,7 +31,7 @@ export default class MinecraftJavaServer extends MinecraftJava {
 			for (const component of components)
 				await component.preLaunch();
 		else if (!await exists(this.jarPath))
-			await this.installGame();
+			await this.install();
 
 		const jvmArgs = await this.getJvmArguments([]);
 		const gameArgs = await this.getGameArguments();

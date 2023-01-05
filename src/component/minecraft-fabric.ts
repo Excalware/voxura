@@ -42,7 +42,7 @@ export default class FabricLoader extends MinecraftClientExtension {
 			return readJsonFile<MinecraftJavaManifest>(manifestPath);
 
 		const download = new Download('component_manifest', [this.id, this.version], this.instance.manager.voxura.downloader);
-		await download.download(`${this.apiBase}/versions/loader/${encodeURIComponent(component.version)}/${encodeURIComponent(this.version)}/profile/json`, manifestPath);
+		await download.download(`${this.apiBase}/versions/loader/${encodeURIComponent(component.version)}/${encodeURIComponent(this.version)}/profile/json`, manifestPath).await();
 
 		return readJsonFile<MinecraftJavaManifest>(manifestPath);
 	}

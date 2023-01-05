@@ -6,15 +6,15 @@ import JavaComponent from './java-component';
 import { InstanceType } from '../instance';
 import { InstanceState } from '../types';
 import MinecraftClientExtension from './minecraft-client-extension';
-import { Download, DownloadState } from '../downloader';
 import { PLATFORM, VOXURA_VERSION } from '../util/constants';
+import { TaskType, Download, DownloadTask, DownloadState } from '../downloader';
 import { filesExist, invokeTauri, readJsonFile, createCommand, mavenAsString } from '../util';
 import MinecraftJava, { parseRule, JavaAssetIndex, convertPlatform, MinecraftJavaLibrary, MinecraftJavaManifest } from './minecraft-java';
 export default class MinecraftJavaClient extends MinecraftJava {
 	public static readonly id: string = 'minecraft-java-vanilla'
 	public static instanceTypes = [InstanceType.Client]
 
-	public async installGame() {
+	public async install() {
 		const manifest = await this.getManifest();
 		const artifact = {
 			url: manifest.downloads.client.url,
@@ -24,35 +24,25 @@ export default class MinecraftJavaClient extends MinecraftJava {
 
 		const downloader = this.instance.manager.voxura.downloader;
 		const version = this.version;
-		const download = new Download('minecraft_java', [version], downloader);
-		if (!await exists(artifact.path))
-			await download.download(artifact.url, artifact.path);
+		const download = new Download('minecraft_java', [version], downloader, false);
+		if (!await exists(artifact.path)) {
+			download.push();
+			await download.download(artifact.url, artifact.path).await();
+		}
 
-		const { libraries } = manifest;
+		const libraries = await this.getLibraries(manifest, []);
 		const assetIndex = await this.getAssetIndex(manifest);
-		await this.downloadAssets(assetIndex);
-
-		await this.downloadLibraries(libraries, download);
-
-		await this.extractNatives(download, libraries);
+		await this.downloadAssets(download, assetIndex);
+		await this.downloadLibraries(download, libraries);
+		if (!await exists(this.nativesPath))
+			await this.extractNatives(download, libraries);
 	}
 
 	public async launch() {
 		const manifest = await this.getManifest();
-		if (!await exists(this.jarPath))
-			await this.installGame();
-
-		const assetIndex = await this.getAssetIndex(manifest);
-		await this.downloadAssets(assetIndex);
+		await this.install();
 
 		const libraries = await this.getLibraries(manifest);
-		await this.downloadLibraries(libraries);
-
-		if (!await exists(this.nativesPath)) {
-			const download = new Download('minecraft_java', [this.version], this.instance.voxura.downloader);
-			await this.extractNatives(download, libraries);
-		}
-
 		for (const component of this.instance.store.components)
 			if (component instanceof MinecraftClientExtension) {
 				manifest.mainClass = await component.getManifest().then(m => m.mainClass);
@@ -102,7 +92,7 @@ export default class MinecraftJavaClient extends MinecraftJava {
 		this.instance.setState(InstanceState.GameRunning);
 	}
 
-	protected async downloadAssets(assetIndex: JavaAssetIndex) {
+	protected async downloadAssets(download: Download, assetIndex: JavaAssetIndex) {
 		const assetsPath = this.instance.manager.assetsPath;
 		const assets = Object.entries(assetIndex.objects).map(
 			([key, { hash }]) => ({
@@ -115,34 +105,26 @@ export default class MinecraftJavaClient extends MinecraftJava {
 			})
 		);
 		const existing = await filesExist(assets.map(l => l.path));
-		const downloader = this.instance.manager.voxura.downloader;
 
-		let download: Download;
-		if (Object.values(existing).some(e => !e))
-			download = new Download('minecraft_java_assets', [this.id, this.version], downloader);
-
+		if (Object.values(existing).includes(false))
+			download.push();
 		await pmap(Object.entries(existing), async ([path, exists]: [path: string, exists: boolean]) => {
 			if (!exists) {
 				const asset = assets.find(l => l.path === path);
-				if (asset) {
-					const sub = new Download('', null, downloader, false);
-					download.addDownload(sub);
-
-					return sub.download(asset.url, path);
-				}
+				if (asset)
+					return download.download(asset.url, path).await();
 			}
 		}, { concurrency: 25 });
 	}
 
 	protected async extractNatives(download: Download, libraries: MinecraftJavaLibrary[]) {
+		download.push();
 		download.setState(DownloadState.Extracting);
 		for (const library of libraries) {
 			const { rules, natives, downloads } = library;
 			if (rules && !rules.every(parseRule))
 				continue;
 			if (downloads) {
-				const sub = new Download('', null, this.instance.manager.voxura.downloader, false);
-
 				let artifact = downloads?.artifact;
 				const classifiers = downloads?.classifiers;
 				if (classifiers) {
@@ -156,19 +138,20 @@ export default class MinecraftJavaClient extends MinecraftJava {
 
 				const path = `${this.librariesPath}/${artifact.path}`;
 				if (!await exists(path))
-					await sub.download(artifact.url, path);
+					await download.download(artifact.url, path).await();
 
-				sub.setState(DownloadState.Extracting);
+				const task = new DownloadTask(TaskType.Extract, download);
+				download.addTask(task);
+				download.setState(DownloadState.Extracting);
+
 				invokeTauri('extract_natives', {
-					id: sub.uuid,
+					id: task.id,
 					path: this.nativesPath,
 					target: path
 				});
-
-				download.addDownload(sub);
 			}
 		}
-		await download.waitForFinish();
+		await download.awaitTasks();
 	}
 
 	protected async getLibraries(manifest: MinecraftJavaManifest, libraries: MinecraftJavaLibrary[] = []) {
@@ -196,32 +179,23 @@ export default class MinecraftJavaClient extends MinecraftJava {
 		});
 	}
 
-	protected async downloadLibraries(libraries: MinecraftJavaLibrary[], download?: Download): Promise<void> {
-        const { id, version } = this.instance.gameComponent;
-		const downloader = this.instance.manager.voxura.downloader;
-
-		const artifacts = libraries.map(l => l.downloads?.artifact!).filter(a => a).map(a => ({
+	protected async downloadLibraries(download: Download, libraries: MinecraftJavaLibrary[]): Promise<void> {
+        const artifacts = libraries.map(l => l.downloads?.artifact!).filter(a => a).map(a => ({
 			...a,
 			path: `${this.librariesPath}/${a.path}`
 		}));
         const existing = await filesExist(artifacts.map(a => a.path));
-        if (!download && Object.values(existing).some(e => !e)) {
-            download = new Download('component_libraries', [id, version], downloader);
-			download.setState(DownloadState.Downloading);
-            downloader.emitEvent('downloadStarted', download);
-        }
+        if (Object.values(existing).includes(false))
+            download.push();
 
         await pmap(Object.entries(existing), async([path, exists]: [path: string, exists: boolean]) => {
             if (!exists) {
                 const url = artifacts.find(l => l.path === path)?.url;
-                if (url) {
-                    const sub = new Download('', null, downloader, false);
-                    download!.addDownload(sub);
-                    return sub.download(url, path);
-                }
+                if (url)
+					return download.download(url, path).await();
             }
         }, { concurrency: 25 });
-		download?.setState(DownloadState.Finished);
+		download.setState(DownloadState.Finished);
     }
 
 	protected getClassPaths(libraries: MinecraftJavaLibrary[], clientPath: string) {
@@ -315,7 +289,7 @@ export default class MinecraftJavaClient extends MinecraftJava {
 	protected async downloadAssetIndex(manifest: MinecraftJavaManifest) {
 		const indexPath = this.getAssetIndexPath(manifest);
 		const download = new Download('minecraft_java_asset_index', [manifest.assets], this.instance.manager.voxura.downloader);
-		return download.download(manifest.assetIndex.url, indexPath);
+		return download.download(manifest.assetIndex.url, indexPath).await();
 	}
 
 	public getAssetIndexPath(manifest: MinecraftJavaManifest) {

@@ -158,7 +158,7 @@ export default abstract class Instance extends EventEmitter {
 
 		const path = `${this.modsPath}/${name}`;
 		const download = new Download('game_mod', [mod.displayName, mod.source.id], this.voxura.downloader);
-		await download.download(url, path);
+		await download.download(url, path).await();
 
 		const modData = await invokeTauri<RustMod>('read_mod', { path });
 		await getStoredValue<VoxuraStore["projects"]>('projects', {}).then(async projects => {
