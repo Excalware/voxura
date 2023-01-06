@@ -196,9 +196,6 @@ export default abstract class Instance extends EventEmitter {
 	}
 
     public async launch(): Promise<void> {
-        if (this.state !== InstanceState.None)
-            throw new Error('Instance state must be InstanceState.None');
-
         this.manager.logger.info('launching', this.name);
         this.setState(InstanceState.Launching);
 
