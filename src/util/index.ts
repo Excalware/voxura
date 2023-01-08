@@ -17,35 +17,34 @@ const isWindows = PLATFORM === 'win32';
 const cmdProgram = isWindows ? 'powershell' : 'sh';
 const cmdArguments = ['-c'];
 export function createCommand(program: string, args: string[], cwd?: string) {
-	console.log(args);
 	if (isWindows) // command prompt has a character limit, so we have to use powershell instead
 		return new Command(cmdProgram, [`& '${program}' @('${args.join("','")}')`], { cwd });
 	return new Command(cmdProgram, [...cmdArguments, program, ...args], { cwd });
-};
+}
 
 export function invokeTauri<T>(cmd: string, args?: InvokeArgs) {
     return invoke<T>('plugin:voxura|' + cmd, args);
-};
+}
 
 export function readJsonFile<T>(filePath: string, options?: FsOptions): Promise<T> {
     return readTextFile(filePath, options).then(JSON.parse);
-};
+}
 
 export function writeJsonFile(filePath: string, contents: any, options?: FsOptions): Promise<void> {
     return writeFile(filePath, JSON.stringify(contents), options);
-};
+}
 
 export function fileExists(filePath: string, options?: FsOptions): Promise<boolean> {
     return exists(filePath, options) as any;
-};
+}
 
 export function filesExist(filePathes: string[]): Promise<Record<string, boolean>> {
     return invokeTauri('files_exist', { files: filePathes });
-};
+}
 
 export function getMD5Hash(filePath: string): Promise<string> {
 	return invokeTauri('get_file_md5', { path: filePath });
-};
+}
 
 export function mavenAsArray(maven: string, nativeString?: string, forceExt?: string): string[] {
     const pathSplit = maven.split(':');
@@ -60,10 +59,10 @@ export function mavenAsArray(maven: string, nativeString?: string, forceExt?: st
         .concat(`${pathSplit[1]}-${finalFileName}`);
     
     return initPath;
-};
+}
 export function mavenAsString(maven: string, nativeString?: string, forceExt?: string) {
     return mavenAsArray(maven, nativeString, forceExt).join('/');
-};
+}
 
 export function getModByFile({ md5, name, icon, path, meta, meta_name }: RustMod): Mod {
     if (meta_name === 'quilt.mod.json') {

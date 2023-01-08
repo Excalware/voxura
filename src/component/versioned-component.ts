@@ -1,3 +1,4 @@
+import joi from '../util/joi';
 import type Instance from '../instance';
 import type { ComponentVersions } from '../types';
 import Component, { ComponentData, ComponentJson } from '.';
@@ -8,6 +9,9 @@ export interface VersionedComponentJson extends ComponentJson {
 	version: string
 }
 export default abstract class VersionedComponent extends Component<VersionedComponentJson> {
+	public static schema = Component.schema.keys({
+		version: joi.semver().valid().required()
+	})
 	public version: string = '1.0.0'
 	public constructor(instance: Instance, data: VersionedComponentJson) {
 		super(instance, data);

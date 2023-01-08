@@ -1,12 +1,17 @@
 import { exists } from '@tauri-apps/api/fs';
+
+import joi from '../util/joi';
 import { Download } from '../downloader';
 import { InstanceType } from '../instance';
 import Component, { ComponentJson } from '.';
-export type JavaAgentJson = ComponentJson & {
-	url: string;
-};
+export interface JavaAgentJson extends ComponentJson {
+	url: string
+}
 export default abstract class JavaAgent extends Component<JavaAgentJson> {
-	public static readonly id: string = 'java-agent';
+	public static id: string = 'java-agent';
+	public static schema = Component.schema.keys({
+		url: joi.string().uri().required()
+	})
 	public static instanceTypes = [InstanceType.Client, InstanceType.Server]
 	public async getFilePath() {
 		const { agentPath } = this;

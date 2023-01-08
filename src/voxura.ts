@@ -90,12 +90,13 @@ export class Voxura {
 
 import JavaAgent from './component/java-agent';
 import JavaTemurin from './component/java-temurin';
-import MinecraftPaper from './component/minecraft-paper';
-import MinecraftQuilt from './component/minecraft-quilt';
-import MinecraftFabric from './component/minecraft-fabric';
-import MinecraftJavaServer from './component/minecraft-java-server';
-import MinecraftJavaClient from './component/minecraft-java-client';
+import MinecraftPaper from './component/server/extension/minecraft-paper';
+import MinecraftQuilt from './component/client/extension/minecraft-quilt';
+import MinecraftFabric from './component/client/extension/minecraft-fabric';
+import MinecraftJavaServer from './component/server/minecraft-java';
+import MinecraftJavaClient from './component/client/minecraft-java';
 import PlaceholderComponent from './component/placeholder';
+import MinecraftJavaClientExtensionJson from './component/client/extension/minecraft-java-json';
 
 export const COMPONENT_MAP: typeof Component<any>[] = [
 	MinecraftJavaServer,
@@ -104,7 +105,9 @@ export const COMPONENT_MAP: typeof Component<any>[] = [
 	MinecraftQuilt,
 	MinecraftFabric,
 	JavaTemurin,
-	JavaAgent
+	JavaAgent,
+
+	MinecraftJavaClientExtensionJson
 ]
 export function getComponent(id: string) {
     return COMPONENT_MAP.find(c => c.id === id) ?? PlaceholderComponent;

@@ -1,12 +1,12 @@
 import { fetch } from '@tauri-apps/api/http';
 
-import { Download } from '../downloader';
-import type Platform from '../platform';
-import { InstanceType } from '../instance';
-import { ComponentType } from '.';
-import MinecraftClientExtension from './minecraft-client-extension';
-import { fileExists, readJsonFile } from '../util';
-import type { MinecraftJavaManifest } from './minecraft-java';
+import { Download } from '../../../downloader';
+import type Platform from '../../../platform';
+import { InstanceType } from '../../../instance';
+import { ComponentType } from '../..';
+import MinecraftClientExtension from './minecraft-java';
+import { fileExists, readJsonFile } from '../../../util';
+import type { MinecraftJavaManifest } from '../../minecraft-java';
 
 export type FabricVersionsResponse = {
 	game: {}[],

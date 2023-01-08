@@ -17,13 +17,13 @@ export { default as JavaTemurin } from './src/component/java-temurin';
 export { default as JavaComponent } from './src/component/java-component';
 export { default as GameComponent } from './src/component/game-component';
 export { default as MinecraftJava } from './src/component/minecraft-java';
-export { default as MinecraftPaper } from './src/component/minecraft-paper';
-export { default as MinecraftQuilt } from './src/component/minecraft-quilt';
-export { default as MinecraftFabric } from './src/component/minecraft-fabric';
+export { default as MinecraftPaper } from './src/component/server/extension/minecraft-paper';
+export { default as MinecraftQuilt } from './src/component/client/extension/minecraft-quilt';
+export { default as MinecraftFabric } from './src/component/client/extension/minecraft-fabric';
 export { default as MinecraftExtension } from './src/component/minecraft-extension';
 export { default as VersionedComponent } from './src/component/versioned-component';
-export { default as MinecraftJavaServer } from './src/component/minecraft-java-server';
-export { default as MinecraftJavaClient } from './src/component/minecraft-java-client';
+export { default as MinecraftJavaServer } from './src/component/server/minecraft-java';
+export { default as MinecraftJavaClient } from './src/component/client/minecraft-java';
 export { default as PlaceholderComponent } from './src/component/placeholder';
 export { ComponentType, default as Component } from './src/component';
 

@@ -1,3 +1,4 @@
+import joi from '../util/joi';
 import type Platform from '../platform';
 import Instance, { InstanceType } from '../instance';
 export enum ComponentType {
@@ -14,6 +15,9 @@ export interface ComponentJson {
 export default abstract class InstanceComponent<T extends ComponentJson = ComponentJson> {
 	public static readonly id: string
 	public static type: ComponentType
+	public static schema = joi.object().keys({
+		id: joi.string().required()
+	})
 	public static instanceTypes: InstanceType[] = []
 	public instance: Instance
 	protected data: T
@@ -44,8 +48,22 @@ export default abstract class InstanceComponent<T extends ComponentJson = Compon
         return `${this.instance.manager.versionsPath}/${this.id}`;
     }
 
+	public get name(): string | null {
+		return null;
+	}
+
+	public get icon(): string | null {
+		return null;
+	}
+
 	public getPlatformId(platform: Platform<any>) {
 		return this.id;
+	}
+
+	public static validateSchema(data: any) {
+		return this.schema.validateAsync(data, {
+			stripUnknown: true
+		});
 	}
 }
 

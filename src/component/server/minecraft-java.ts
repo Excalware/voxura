@@ -1,11 +1,11 @@
 import { exists } from '@tauri-apps/api/fs';
 
-import { Download } from '../downloader';
-import JavaComponent from './java-component';
-import MinecraftJava from './minecraft-java';
-import { InstanceType } from '../instance';
-import { InstanceState } from '../types';
-import MinecraftServerExtension from './minecraft-server-extension';
+import { Download } from '../../downloader';
+import JavaComponent from '../java-component';
+import MinecraftJava from '../minecraft-java';
+import { InstanceType } from '../../instance';
+import { InstanceState } from '../../types';
+import MinecraftServerExtension from './extension/minecraft-java';
 export default class MinecraftJavaServer extends MinecraftJava {
 	public static readonly id: string = 'minecraft-java-server'
 	public static instanceTypes = [InstanceType.Server]

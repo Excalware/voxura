@@ -1,9 +1,9 @@
 import { fetch } from '@tauri-apps/api/http';
 import { exists } from '@tauri-apps/api/fs';
 
-import { Download } from '../downloader';
-import { readJsonFile } from '../util';
-import MinecraftServerExtension from './minecraft-server-extension';
+import { Download } from '../../../downloader';
+import { readJsonFile } from '../../../util';
+import MinecraftServerExtension from './minecraft-java';
 export default class MinecraftPaper extends MinecraftServerExtension {
 	public static readonly id: string = 'minecraft-java-server-paper'
 

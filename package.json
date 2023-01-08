@@ -9,6 +9,8 @@
         "@reduxjs/toolkit": "^1.8.5",
         "@tauri-apps/api": "^1.2.0",
         "buffer": "^6.0.3",
+        "joi": "^17.7.0",
+        "joi-extension-semver": "^5.0.0",
         "p-map-browser": "^1.2.0",
         "semver": "^7.3.7",
         "toml": "^3.0.0",

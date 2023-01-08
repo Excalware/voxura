@@ -1,14 +1,14 @@
 import pmap from 'p-map-browser';
 import { exists } from '@tauri-apps/api/fs';
 
-import JavaComponent from './java-component';
-import { InstanceType } from '../instance';
-import { InstanceState } from '../types';
-import MinecraftClientExtension from './minecraft-client-extension';
-import { PLATFORM, VOXURA_VERSION } from '../util/constants';
-import { TaskType, Download, DownloadTask, DownloadState } from '../downloader';
-import { filesExist, invokeTauri, readJsonFile, mavenAsString } from '../util';
-import MinecraftJava, { parseRule, JavaAssetIndex, convertPlatform, MinecraftJavaLibrary, MinecraftJavaManifest } from './minecraft-java';
+import JavaComponent from '../java-component';
+import { InstanceType } from '../../instance';
+import { InstanceState } from '../../types';
+import MinecraftClientExtension from './extension/minecraft-java';
+import { PLATFORM, VOXURA_VERSION } from '../../util/constants';
+import { TaskType, Download, DownloadTask, DownloadState } from '../../downloader';
+import { filesExist, invokeTauri, readJsonFile, mavenAsString } from '../../util';
+import MinecraftJava, { parseRule, JavaAssetIndex, convertPlatform, MinecraftJavaLibrary, MinecraftJavaManifest } from '../minecraft-java';
 export default class MinecraftJavaClient extends MinecraftJava {
 	public static readonly id: string = 'minecraft-java-vanilla'
 	public static instanceTypes = [InstanceType.Client]
