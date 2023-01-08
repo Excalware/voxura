@@ -8,7 +8,6 @@ import { exists, createDir, removeDir, removeFile, readBinaryFile } from '@tauri
 
 import type Mod from '../util/mod';
 import { Download } from '../downloader';
-import type Project from '../platform/project';
 import EventEmitter from '../util/eventemitter';
 import MinecraftJava from '../component/minecraft-java';
 import { InstanceState } from '../types';
@@ -17,7 +16,7 @@ import mdpkmInstanceConfig from './store/mdpkm';
 import type InstanceManager from './manager';
 import DefaultInstanceStore from './store/default';
 import { Voxura, VoxuraStore } from '../voxura';
-import type { Mod as PlatformMod } from '../platform/mod';
+import Project, { ProjectType } from '../platform/project';
 import { getStoredValue, setStoredValue } from '../storage';
 import InstanceStore, { InstanceStoreType } from './store';
 import InstanceComponent, { ComponentType } from '../component';
@@ -141,50 +140,50 @@ export default abstract class Instance extends EventEmitter {
 		return this.store.components.find(c => c instanceof type) as any;
 	}
 
-    public async installMod(mod: Project<any, any> & PlatformMod): Promise<void> {
-        console.log(mod);
-        const version = await mod.getLatestVersion(this);
-        console.log('latest version:', version);
+    public async installProject(project: Project<any>): Promise<void> {
+		console.log(project);
+        const version = await project.getLatestVersion(this);
+        if (!version)
+			throw new CompatibilityError(`${project.displayName} is incompatible with ${this.name}`);
 
-		if (!version)
-			throw new CompatibilityError(`${mod.displayName} is incompatible with ${this.name}`);
+        const file = version.files.find((f: any) => f.primary && f.url) ?? version.files[0];
+        const name = file.filename;
+        const url = file.url;
 
-        const file = version.files?.find((f: any) => f.primary && (f.url ?? f.downloadUrl)) ?? version.files?.find((f: any) => f.url ?? f.downloadUrl) ?? version;
-        const name = file.filename ?? file.fileName;
-        const url = file.url ?? file.downloadUrl;
-        console.log('file:', file);
+		const dir = `${this.path}/${PROJECT_TYPE_DIR[project.type]}`;
+		await createDir(dir, { recursive: true });
 
-		await createDir(this.modsPath, { recursive: true });
-
-		const path = `${this.modsPath}/${name}`;
-		const download = new Download('game_mod', [mod.displayName, mod.source.id], this.voxura.downloader);
+		const path = `${dir}/${name}`;
+		const download = new Download('game_mod', [project.displayName, project.source.id], this.voxura.downloader);
 		await download.download(url, path).await();
 
-		const modData = await invokeTauri<RustMod>('read_mod', { path });
-		await getStoredValue<VoxuraStore["projects"]>('projects', {}).then(async projects => {
-			let icon = modData.icon;
-			const { webIcon } = mod;
-			if (webIcon)
-				if (webIcon.startsWith('http'))
-					icon = await fetch2<number[]>(webIcon, { method: 'GET', responseType: ResponseType.Binary }).then(r => r.data);
-				else
-					icon = await fetch(webIcon).then(r => r.arrayBuffer()).then(a => [...new Uint8Array(a)]);
-			projects[modData.md5] = {
-				id: mod.id,
-				version: version.id,
-				platform: mod.source.id,
-				cached_icon: icon,
-				cached_metadata: modData.meta,
-				cached_metaname: modData.meta_name
-			};
-			modData.icon = icon;
-			return setStoredValue('projects', projects);
-		});
+		if (project.type === ProjectType.Mod) {
+			const modData = await invokeTauri<RustMod>('read_mod', { path });
+			await getStoredValue<VoxuraStore["projects"]>('projects', {}).then(async projects => {
+				let icon = modData.icon;
+				const { webIcon } = project;
+				if (webIcon)
+					if (webIcon.startsWith('http'))
+						icon = await fetch2<number[]>(webIcon, { method: 'GET', responseType: ResponseType.Binary }).then(r => r.data);
+					else
+						icon = await fetch(webIcon).then(r => r.arrayBuffer()).then(a => [...new Uint8Array(a)]);
+				projects[modData.md5] = {
+					id: project.id,
+					version: version.id,
+					platform: project.source.id,
+					cached_icon: icon,
+					cached_metadata: modData.meta,
+					cached_metaname: modData.meta_name
+				};
+				modData.icon = icon;
+				return setStoredValue('projects', projects);
+			});
 
-		const mod2 = getModByFile(modData);
-		mod2.source = mod.source;
+			const mod = getModByFile(modData);
+			mod.source = project.source;
 
-		this.modifications.push(mod2);
+			this.modifications.push(mod);
+		}
 		this.emitEvent('changed');
     }
 
@@ -327,7 +326,13 @@ export default abstract class Instance extends EventEmitter {
 	public get storeType() {
 		return this.store?.type ?? InstanceStoreType.Default;
 	}
-};
+}
+
+export const PROJECT_TYPE_DIR: Record<number, string> = {
+	[ProjectType.Mod]: 'mods',
+	[ProjectType.Shader]: 'shaderpacks',
+	[ProjectType.ResourcePack]: 'resourcepacks'
+}
 
 export class CompatibilityError extends Error {}
 export class DependencyError extends Error {}

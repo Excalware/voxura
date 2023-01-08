@@ -1,107 +1,66 @@
 import { fetch, ResponseType } from '@tauri-apps/api/http';
 
-import { Mod } from './mod';
 import Platform from '.';
 import Instance from '../instance';
 import GameComponent from '../component/game-component';
-import Project, { ProjectSide } from './project';
-export default class Modrinth extends Platform<ModrinthProject> {
-	public static id = 'modrinth';
-	public search(query: string, options: {
-        limit?: number,
-        facets?: string[],
-        offset?: number,
-        loaders?: string[],
-        versions?: string[],
-        categories?: string[],
-        projectType?: string
-    } = {}): Promise<{
-        hits: ModrinthProject[],
-        limit: number,
-        offset: number,
-        total_hits: number
-    }> {
-        return this.searchRaw(query, options).then(data => ({
-            ...data,
-            hits: data.hits.map(h => new ModrinthProject(h.project_id, h, this))
-        }));
-    }
-
-    public searchMods(query: string, options: {
-        limit?: number,
-        facets?: string[],
-        offset?: number,
-        loaders?: string[],
-        versions?: string[],
+import Project, { ProjectType } from './project';
+const Modrinth = new class Modrinth extends Platform<ModrinthProject> {
+	public id = 'modrinth';
+	public async search(query: string, type: ProjectType, options: {
+        limit?: number
+        offset?: number
+        loaders?: string[]
+        versions?: string[]
         categories?: string[]
     } = {}): Promise<{
-        hits: ModrinthMod[],
-        limit: number,
-        offset: number,
-        total_hits: number
-    }> {
-        return this.searchRaw(query, {
-			...options,
-			projectType: 'mod'
-		}).then(data => ({
-            ...data,
-            hits: data.hits.map(h => new ModrinthMod(h.project_id, h, this))
-        }));
-    }
-
-    private searchRaw(query: string, options: {
-        limit?: number,
-        facets?: string[],
-        offset?: number,
-        loaders?: string[],
-        versions?: string[],
-        categories?: string[],
-        projectType?: string
-    } = {}): Promise<{
-        hits: ProjectData[],
-        limit: number,
-        offset: number,
-        total_hits: number
+        hits: ModrinthProject[]
+        limit: number
+		total: number
+        offset: number
     }> {
         const {
             limit = 20,
             offset = 0,
-			facets = [],
             loaders,
             versions,
-            categories,
-            projectType
+            categories
         } = options;
-		const facetss = [
-			...facets,
-			categories?.filter(v => v).map(cat => `categories:${cat}`),
-			loaders?.filter(v => v).map(cat => `categories:${cat}`),
-			versions?.filter(v => v).map(ver => `versions:${ver}`),
-			projectType ? [`project_type:${projectType}`] : undefined
-		].filter(v => v);
-		console.log(facetss);
-        return fetch<any>(`${API_BASE}/search`, {
+        const { ok, data, status } = await fetch<SearchResponse>(`${API_BASE}/search`, {
             query: {
                 query,
                 limit: limit.toString(),
                 offset: offset.toString(),
-                facets: JSON.stringify(facetss)
+                facets: JSON.stringify([
+					loaders?.filter(v => v).map(cat => `categories:${cat}`),
+					versions?.filter(v => v).map(ver => `versions:${ver}`),
+					categories?.filter(v => v).map(cat => `categories:${cat}`),
+					type !== ProjectType.Any ? [`project_type:${this.getProjectType2(type)}`] : undefined
+				].filter(v => v))
             },
             method: 'GET',
             responseType: ResponseType.JSON
-        }).then(d => d.data);
+        });
+		if (!ok) {
+			console.error(status, data);
+			throw new Error();
+		}
+		return {
+			hits: data.hits.map(hit =>
+				new ModrinthProject(hit.project_id, this.getProjectType(hit.project_type), hit)
+			),
+			limit: data.limit,
+			total: data.total_hits,
+			offset: data.offset
+		}
     }
 
     public async getProject(id: string): Promise<ModrinthProject> {
-        return new ModrinthProject(id, await this.getProjectData(id), this);
+		const data = await this.getProjectData(id);
+        return new ModrinthProject(id, this.getProjectType(data.project_type), data);
     }
 
     private getProjectData(id: string): Promise<ProjectData> {
         return fetch<ProjectData>(`${API_BASE}/project/${id}`).then(r => r.data);
-    }
-
-    public async getMod(id: string): Promise<ModrinthMod> {
-        return new ModrinthMod(id, await this.getProjectData(id), this);
     }
 
 	public get baseUserURL() {
@@ -110,7 +69,29 @@ export default class Modrinth extends Platform<ModrinthProject> {
 	public get baseProjectURL() {
 		return PROJECT_BASE;
 	}
-};
+
+	private getProjectType(type: string): ProjectType {
+		const type2 = Object.keys(PROJECT_TYPES).find(key => PROJECT_TYPES[key] === type);
+		if (!type2)
+			throw new Error(`unknown type: ${type}`);
+		return parseInt(type2);
+	}
+
+	private getProjectType2(type: ProjectType) {
+		return PROJECT_TYPES[type];
+	}
+}
+export default Modrinth
+
+export const PROJECT_TYPES: Record<string, string> = {
+	[ProjectType.Any]: '',
+	[ProjectType.Mod]: 'mod',
+	[ProjectType.Plugin]: 'plugin',
+	[ProjectType.Shader]: 'shader',
+	[ProjectType.Modpack]: 'modpack',
+	[ProjectType.DataPack]: 'datapack',
+	[ProjectType.ResourcePack]: 'resourcepack'
+}
 
 export interface ProjectData {
 	id: string
@@ -147,33 +128,28 @@ export interface SearchResult {
 	icon_url?: string
 	downloads: number
 	project_id: string
+	categories: string[]
 	description: string
-	categories?: string[]
 	client_side: ModrinthProjectSide
 	server_side: ModrinthProjectSide
 	date_created: string
 	project_type: ModrinthProjectType
 	date_modified: string
 	latest_version?: string
-	display_categories?: string[]
+	display_categories: string[]
 }
+export interface SearchResponse {
+	hits: SearchResult[]
+	limit: number
+	offset: number
+	total_hits: number
+}
+
 export type ModrinthProjectType = 'mod' | 'modpack' | 'resourcepack'
 export type ModrinthProjectSide = 'optional' | 'required' | 'unsupported'
-export class ModrinthProject extends Project<SearchResult, Modrinth> {
-	public getSide(): ProjectSide {
-        const client = this.data.client_side, server = this.data.server_side;
-        if(!client)
-            return ProjectSide.Unknown;
-        if(client !== 'unsupported' && server !== 'unsupported')
-            return ProjectSide.Universal;
-        if(client !== 'unsupported')
-            return ProjectSide.Client;
-        if(server !== 'unsupported')
-            return ProjectSide.Server;
-        return ProjectSide.Unknown;
-    }
-
-    public async getLatestVersion(instance: Instance) {
+export class ModrinthProject extends Project<SearchResult> {
+	public source = Modrinth;
+	public async getLatestVersion(instance: Instance) {
         const versions = await this.getVersions();
 		const { components } = instance.store;
         return versions.find(({ loaders, game_versions }) =>
@@ -215,9 +191,20 @@ export class ModrinthProject extends Project<SearchResult, Modrinth> {
     public get webIcon(): string | undefined {
         return this.data.icon_url;
     }
-}
-export class ModrinthMod extends ModrinthProject implements Mod {
-    
+
+	public get categories() {
+		return this.data.categories;
+	}
+	public get displayCategories() {
+		return this.data.display_categories;
+	}
+
+	public get clientSide() {
+		return this.data.client_side;
+	}
+	public get serverSide() {
+		return this.data.server_side;
+	}
 }
 
 export const API_BASE = 'https://api.modrinth.com/v2';

@@ -192,6 +192,10 @@ export default abstract class MinecraftJava extends GameComponent {
 		}
 	}
 
+	public getPlatformId() {
+		return 'minecraft';
+	}
+
 	public abstract get jarPath(): string
 
 	public get manifestPath() {

@@ -1,10 +1,9 @@
 export * from './src/voxura';
 
-export type { Mod } from './src/platform/mod';
 export { default as Authentication } from './src/auth';
 export type { AccountData } from './src/auth';
 export { AvatarType, AvatarStyle, ProfileType, default as Account } from './src/auth/account';
-export { ProjectSide, default as Project } from './src/platform/project';
+export { ProjectType, default as Project } from './src/platform/project';
 export { default as Platform } from './src/platform';
 
 export { LaunchError, InstanceType, default as Instance } from './src/instance';

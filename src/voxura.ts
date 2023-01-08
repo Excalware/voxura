@@ -9,28 +9,28 @@ import Authentication from './auth';
 import type Component from './component';
 import InstanceManager from './instance/manager';
 
-export type VoxuraStore = {
-	projects: Record<string, CachedProject>;
-};
-export type CachedProject = {
-	id: string;
-	version: string;
-	platform: string;
-	cached_icon?: number[];
-	cached_metadata?: string;
-	cached_metaname?: string;
-};
+export interface VoxuraStore {
+	projects: Record<string, CachedProject>
+}
+export interface CachedProject {
+	id: string
+	version: string
+	platform: string
+	cached_icon?: number[]
+	cached_metadata?: string
+	cached_metaname?: string
+}
 export interface VoxuraConfig {
     
-};
+}
 export class Voxura {
-    public auth: Authentication;
-	public logger: Logger<unknown>;
-    public config: VoxuraConfig;
-    public rootPath: string;
-    public platforms: Record<string, Platform<any>>;
-    public instances!: InstanceManager;
-    public downloader: Downloader;
+    public auth: Authentication
+	public logger: Logger<unknown>
+    public config: VoxuraConfig
+    public rootPath: string
+    public platforms: Record<string, Platform<any>>
+    public instances!: InstanceManager
+    public downloader: Downloader
 
     public constructor(path: string, config?: VoxuraConfig) {
 		this.logger = new Logger({
@@ -44,7 +44,7 @@ export class Voxura {
 		this.instances = new InstanceManager(this, this.rootPath + '/instances');
         this.downloader = new Downloader(this);
         this.platforms = {
-            modrinth: new Modrinth()
+            modrinth: Modrinth
         };
         this.config = config ?? {};
     }
